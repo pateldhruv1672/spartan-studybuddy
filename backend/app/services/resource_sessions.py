@@ -13,7 +13,7 @@ async def upsert_session(user_id:str,project_id:str|None,url:str,title:str,resou
         merged=list(dict.fromkeys((json.loads(old['concepts_json']) if old else [])+concepts))[:20]
         conn.execute('''INSERT INTO resource_sessions(id,user_id,project_id,resource_url,resource_title,resource_type,seconds_active,progress,last_position,duration,summary,concepts_json,checkpoint_json,last_seen_at)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-          ON CONFLICT(id) DO UPDATE SET seconds_active=excluded.seconds_active,progress=MAX(resource_sessions.progress,excluded.progress),last_position=excluded.last_position,duration=COALESCE(excluded.duration,resource_sessions.duration),resource_title=excluded.resource_title,concepts_json=excluded.concepts_json,last_seen_at=CURRENT_TIMESTAMP''',
+          ON CONFLICT(id) DO UPDATE SET seconds_active=excluded.seconds_active,progress=GREATEST(resource_sessions.progress,excluded.progress),last_position=excluded.last_position,duration=COALESCE(excluded.duration,resource_sessions.duration),resource_title=excluded.resource_title,concepts_json=excluded.concepts_json,last_seen_at=CURRENT_TIMESTAMP''',
           (sid,user_id,project_id,url,title,resource_type,total_seconds,max(0,min(1,progress)),last_position,duration,summary,json.dumps(merged),json.dumps(checkpoint)))
     # Create a concise resume brief once a learner has meaningful progress. Visible text is intentionally truncated.
     if progress>.08 and (not summary or progress>.85):

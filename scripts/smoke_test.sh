@@ -15,7 +15,7 @@ else
   exit 1
 fi
 
-ALLOW_EMBEDDING_FALLBACK=1 PYTHONPATH="$ROOT/backend" pytest -q tests/test_extractors.py tests/test_system.py
+OTEL_SDK_DISABLED=true ALLOW_EMBEDDING_FALLBACK=1 PYTHONPATH="$ROOT/backend" pytest -q tests/test_extractors.py tests/test_system.py
 "$ROOT/scripts/extensions/test_all.sh"
 node --check apps/web/app.js
 python3 -m py_compile bridges/mac_bridge.py bridges/computer_use_executor.py

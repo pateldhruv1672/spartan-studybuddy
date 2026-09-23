@@ -1,0 +1,47 @@
+{
+  "profile": "tuned",
+  "endpoint": "http://127.0.0.1:8201/v1",
+  "model": "studybuddy-socratic",
+  "requests": 16,
+  "concurrency": 1,
+  "max_tokens": 180,
+  "wall_time_s": 190.8139,
+  "total_output_tokens": 667,
+  "aggregate_output_tok_s": 3.496,
+  "ttft_p50_s": 0.5753,
+  "ttft_p95_s": 0.601,
+  "e2e_p50_s": 11.7389,
+  "e2e_p95_s": 22.7074,
+  "decode_tok_s_p50": 3.678,
+  "decode_tok_s_p95": 3.835,
+  "spec_metrics_samples": [],
+  "samples": [
+    {
+      "ttft_s": 0.38574389601126313,
+      "e2e_s": 6.505338899005437,
+      "output_tokens": 23,
+      "decode_tok_s": 3.7584186516830997,
+      "request_tok_s": 3.535557540824865,
+      "speculative_decoding": null,
+      "text": "What happens to the order of nodes in the frontier when you add new nodes to the end of the queue?"
+    },
+    {
+      "ttft_s": 0.5903223769855686,
+      "e2e_s": 11.185548632987775,
+      "output_tokens": 39,
+      "decode_tok_s": 3.680902989486087,
+      "request_tok_s": 3.486641673076585,
+      "speculative_decoding": null,
+      "text": "Let's start with the first step. Can you identify the values of a, b, and f(n) in the given recurrence relation T(n)=4T(n/2)+n?"
+    },
+    {
+      "ttft_s": 0.5971640440111514,
+      "e2e_s": 5.881413146009436,
+      "output_tokens": 20,
+      "decode_tok_s": 3.7848329278112245,
+      "request_tok_s": 3.400543288405115,
+      "speculative_decoding": null,
+      "text": "What might be happening to your model's ability to generalize as it learns the training data better?"
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#f5f5f7" />
+  <title>Spartan StudyBuddy — Engineering Onboarding, Rebuilt</title>
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+<div class="ambient a1"></div><div class="ambient a2"></div>
+<div id="toast" class="toast"></div>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">S</div><div><b>Spartan</b><span>StudyBuddy</span></div></div>
+    <nav>
+      <button class="nav active" data-view="home"><i>⌂</i>Home</button>
+      <button class="nav" data-view="knowledge"><i>◫</i>Knowledge</button>
+      <button class="nav" data-view="paths"><i>↗</i>Onboarding</button>
+      <button class="nav" data-view="assistant"><i>✦</i>StudyBuddy</button>
+      <button class="nav" data-view="team"><i>◎</i>Team</button>
+      <button class="nav" data-view="engineering"><i>⌁</i>Engineering</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="pet-mini" id="petMini" title="Sparty is synced to your learning memory">
+        <svg viewBox="0 0 80 80" aria-hidden="true"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#5e5ce6"/><stop offset="1" stop-color="#7d7aff"/></linearGradient></defs><path fill="url(#g)" d="M16 35C16 20 26 10 40 10s24 10 24 25v16c0 12-11 20-24 20S16 63 16 51V35Z"/><path fill="#fff" d="M27 37c0-7 5-12 13-12s13 5 13 12v10c0 8-6 13-13 13s-13-5-13-13V37Z"/><circle cx="35" cy="40" r="2.5"/><circle cx="46" cy="40" r="2.5"/><path d="M36 49c3 2 6 2 9 0" stroke="#111827" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <div><strong>Sparty</strong><small>Learning memory online</small></div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div class="project-switcher"><span class="status-dot"></span><select id="projectSelect"></select><button id="newProjectBtn" class="icon-btn">+</button></div>
+      <div class="top-actions"><span id="modelState" class="system-chip">Checking Spark…</span><button class="avatar" id="avatar">AM</button></div>
+    </header>
+
+    <section class="view active" id="view-home">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">PRIVATE ENGINEERING INTELLIGENCE</p>
+          <h1>Turn your codebase into<br/><span>an onboarding academy.</span></h1>
+          <p class="lede">StudyBuddy understands the repository, discovers prerequisites, curates public learning resources, and guides every engineer toward contribution without shipping your private context to a cloud AI.</p>
+          <div class="hero-actions"><button class="primary" data-go="knowledge">Connect knowledge</button><button class="secondary" data-go="paths">Build onboarding path</button></div>
+        </div>
+        <div class="hero-stage">
+          <div class="pet-orbit"><div class="orbit-ring"></div><div class="pet-large" id="petLarge"><svg viewBox="0 0 180 180"><defs><linearGradient id="pg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5e5ce6"/><stop offset="1" stop-color="#9290ff"/></linearGradient><filter id="sh"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-opacity=".18"/></filter></defs><path filter="url(#sh)" fill="url(#pg)" d="M36 78c0-34 22-58 54-58s54 24 54 58v34c0 28-23 47-54 47s-54-19-54-47V78Z"/><path fill="#fff" d="M58 83c0-19 13-32 32-32s32 13 32 32v22c0 21-14 34-32 34s-32-13-32-34V83Z"/><ellipse cx="78" cy="90" rx="5" ry="7" fill="#151620"/><ellipse cx="103" cy="90" rx="5" ry="7" fill="#151620"/><circle cx="76" cy="87" r="1.5" fill="#fff"/><circle cx="101" cy="87" r="1.5" fill="#fff"/><path d="M81 112c6 5 13 5 19 0" stroke="#151620" stroke-width="4" fill="none" stroke-linecap="round"/></svg></div><div class="float-card fc1">Repository indexed <b id="heroDocs">0</b></div><div class="float-card fc2">Tutor latency <b id="heroLatency">—</b></div><div class="float-card fc3">Learning streak <b>7d</b></div></div>
+        </div>
+      </div>
+
+      <div class="section-heading"><div><p class="eyebrow">CONTINUE</p><h2>Pick up exactly where you left off.</h2></div><button class="text-btn" data-go="paths">View all →</button></div>
+      <div id="resumeCards" class="resume-grid"></div>
+
+      <div class="section-heading"><div><p class="eyebrow">TODAY</p><h2>Your engineering runway.</h2></div></div>
+      <div class="dashboard-grid">
+        <article class="panel progress-panel"><div class="panel-title"><div><span class="soft-icon violet">↗</span><div><b>Onboarding progress</b><small id="activePathTitle">No path yet</small></div></div><span class="score" id="progressScore">0%</span></div><div class="progress-bar"><i id="progressBar"></i></div><div id="nextTasks" class="task-list"></div></article>
+        <article class="panel knowledge-panel"><div class="panel-title"><div><span class="soft-icon blue">◫</span><div><b>Knowledge graph</b><small>Private repository + docs</small></div></div><button class="icon-btn" data-go="knowledge">↗</button></div><div id="languageMap" class="language-map"></div><div class="knowledge-number"><b id="symbolCount">0</b><span>indexed symbols</span></div></article>
+        <article class="panel leaderboard-panel"><div class="panel-title"><div><span class="soft-icon amber">♜</span><div><b>Team momentum</b><small>Learning, not screen time</small></div></div></div><div id="leaderboardMini" class="leaderboard"></div></article>
+      </div>
+    </section>
+
+    <section class="view" id="view-knowledge">
+      <div class="page-head"><div><p class="eyebrow">KNOWLEDGE LAYER</p><h1>Everything the team knows,<br/>grounded in source.</h1><p>Connect private repositories, documents, internal docs, Drive files, papers, and websites. Code is indexed at symbol boundaries and linked to a dependency graph.</p></div><button class="primary" id="openSourceModal">+ Add source</button></div>
+      <div class="search-hero"><input id="knowledgeSearch" placeholder="Search functions, architecture decisions, docs…"/><button id="knowledgeSearchBtn">Search</button></div>
+      <div class="knowledge-layout"><div><div class="section-heading compact"><div><h2>Connected sources</h2></div></div><div id="sourceList" class="source-list"></div></div><div><div class="section-heading compact"><div><h2>Repository map</h2></div></div><div id="repoMap" class="panel repo-map"></div></div></div>
+      <div id="searchResults" class="search-results"></div>
+    </section>
+
+    <section class="view" id="view-paths">
+      <div class="page-head"><div><p class="eyebrow">ROLE-BASED ONBOARDING</p><h1>A learning path that starts<br/>with the actual codebase.</h1><p>StudyBuddy identifies prerequisites, finds public resources without leaking private identifiers, then blends them with repository walkthroughs, checkpoints, and exercises.</p></div><button class="primary" id="newPathBtn">Generate path</button></div>
+      <div id="pathList" class="path-grid"></div>
+      <div id="pathDetail" class="path-detail hidden"></div>
+    </section>
+
+    <section class="view" id="view-assistant">
+      <div class="assistant-layout">
+        <div class="assistant-info"><p class="eyebrow">CENTRAL MEMORY</p><h1>Ask directly.<br/>Or learn Socratically.</h1><p>One memory layer is shared by the web app, browser companion, coding agent, and VS Code tutor. Choose the behavior you need—the router handles the model policy.</p><div class="mode-cards"><button class="mode active" data-mode="auto"><b>Auto</b><span>Route it for me</span></button><button class="mode" data-mode="qa"><b>Answer</b><span>Direct, grounded Q&A</span></button><button class="mode" data-mode="socratic"><b>Socratic</b><span>Guide, don't dump</span></button><button class="mode" data-mode="explain"><b>Explain</b><span>Notebook-style simplicity</span></button><button class="mode" data-mode="code"><b>Code</b><span>Trace the repository</span></button></div></div>
+        <div class="chat-shell panel"><div class="chat-top"><div><span class="status-dot"></span><b>StudyBuddy</b><small id="chatRoute">Auto routing</small></div><button class="icon-btn" id="newThreadBtn">+</button></div><div id="chat" class="chat"><div class="message assistant"><div class="bubble"><b>Ask me anything about this workspace.</b><p>I can answer directly from code and docs, simplify a concept, or switch into Socratic teaching when you're practicing.</p></div></div></div><div class="composer"><textarea id="question" rows="1" placeholder="Ask about a function, architecture, or concept…"></textarea><button id="sendAsk">↑</button></div></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-team">
+      <div class="page-head"><div><p class="eyebrow">TEAM ENABLEMENT</p><h1>Managers see readiness.<br/>Learners see momentum.</h1><p>Invite teammates, assign role-specific paths, and use meaningful checkpoints rather than completion theater.</p></div><button class="primary" id="inviteBtn">Invite teammate</button></div>
+      <div class="stats-row" id="teamStats"></div><div class="team-layout"><div class="panel"><div class="panel-title"><div><b>Team</b><small>Workspace members</small></div></div><div id="teamList" class="team-list"></div></div><div class="panel"><div class="panel-title"><div><b>Leaderboard</b><small>XP from checkpoints and learning tasks</small></div></div><div id="leaderboardFull" class="leaderboard"></div></div></div>
+    </section>
+
+    <section class="view" id="view-engineering">
+      <div class="page-head"><div><p class="eyebrow">ENGINEERING LAB</p><h1>Prove the model.<br/>Prove the system.</h1><p>Fine-tuning quality, TTFT, decode throughput, agent traces, and live service health are measured locally on the DGX Spark.</p></div><a class="secondary button-link" href="/metrics" target="_blank">Prometheus metrics ↗</a></div>
+      <div id="engineeringCards" class="engineering-grid"></div>
+      <div class="panel trace-panel"><div class="panel-title"><div><b>Recent agent traces</b><small>Local observability store • prompts are preview-truncated</small></div><a href="http://localhost:3001" target="_blank" class="text-btn">Open Grafana ↗</a></div><div id="traceList" class="trace-list"></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-backdrop hidden" id="sourceModal"><div class="modal"><div class="modal-head"><div><p class="eyebrow">CONNECT KNOWLEDGE</p><h2>Add a private or public source</h2></div><button class="icon-btn modal-close">×</button></div><div class="source-tabs"><button class="active" data-source-tab="link">Link</button><button data-source-tab="file">Upload</button></div><div id="sourceLinkPane"><label>URL <input id="sourceUrl" placeholder="GitHub, Google Drive, documentation URL, PDF…"/></label><label>Private access token <input id="sourceToken" type="password" placeholder="Optional • never stored"/></label><button class="primary full" id="ingestSource">Connect + index</button><p class="microcopy">GitHub tokens are used only for cloning. Google Drive folders require an access token; public/shared individual files can be imported directly.</p></div><div id="sourceFilePane" class="hidden"><label class="dropzone"><input id="sourceFiles" type="file" multiple/><span>Drop files here or click to choose</span><small>PDF, DOCX, PPTX, XLSX, notebooks, source code, Markdown and text</small></label><button class="primary full" id="uploadFiles">Upload + index</button></div></div></div>
+
+<div class="modal-backdrop hidden" id="projectModal"><div class="modal small"><div class="modal-head"><div><p class="eyebrow">NEW WORKSPACE</p><h2>Create project</h2></div><button class="icon-btn modal-close">×</button></div><label>Name <input id="projectName" placeholder="Payments Platform"/></label><label>Description <textarea id="projectDescription" placeholder="Private engineering onboarding workspace"></textarea></label><button class="primary full" id="createProject">Create workspace</button></div></div>
+
+<div class="modal-backdrop hidden" id="pathModal"><div class="modal"><div class="modal-head"><div><p class="eyebrow">GENERATE ONBOARDING</p><h2>Design the role path</h2></div><button class="icon-btn modal-close">×</button></div><div class="form-grid"><label>Role <select id="pathRole"><option>ML Engineer</option><option>Data Engineer</option><option>Backend Engineer</option><option>Forward Deployed Engineer</option><option>Data Analyst</option><option>Platform Engineer</option></select></label><label>Level <select id="pathLevel"><option value="junior">Junior</option><option value="mid">Mid-level</option><option value="senior">Senior</option></select></label><label>Weeks <input id="pathWeeks" type="number" min="1" max="16" value="4"/></label><label>Hours / week <input id="pathHours" type="number" min="1" max="40" value="8"/></label></div><label>Background <textarea id="pathBackground" placeholder="Python, basic ML, new to Kafka…"></textarea></label><button class="primary full" id="generatePath">Analyze repository + generate</button></div></div>
+
+<div class="modal-backdrop hidden" id="inviteModal"><div class="modal small"><div class="modal-head"><div><p class="eyebrow">INVITE</p><h2>Add a teammate</h2></div><button class="icon-btn modal-close">×</button></div><label>Email <input id="inviteEmail" type="email" placeholder="engineer@company.com"/></label><label>Role <input id="inviteRole" placeholder="ML Engineer"/></label><button class="primary full" id="createInvite">Create invite link</button><div id="inviteResult" class="invite-result hidden"></div></div></div>
+<script src="/assets/app.js"></script>
+</body>
+</html>

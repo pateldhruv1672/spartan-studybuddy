@@ -1,0 +1,14 @@
+# NVIDIA's DGX Spark Unsloth guide uses this ARM64/Blackwell-ready PyTorch image.
+FROM nvcr.io/nvidia/pytorch:25.11-py3
+
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install \
+      "transformers>=4.57,<5" \
+      "datasets==4.3.0" \
+      "trl==0.26.1" \
+      "peft==0.17.0" \
+      "accelerate>=1.10" \
+      "bitsandbytes>=0.47" \
+      sentencepiece safetensors huggingface_hub
+
+WORKDIR /workspace/spartan-studybuddy

@@ -1,0 +1,4 @@
+httpx>=0.27
+python-dotenv>=1.0
+# Install Browser-Use on the Mac with scripts/mac/setup_browser_use.sh.
+# It is intentionally not required by the Spark backend environment.

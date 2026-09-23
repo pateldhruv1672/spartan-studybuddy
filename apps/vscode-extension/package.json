@@ -1,0 +1,85 @@
+{
+  "name": "spartan-studybuddy-vscode",
+  "displayName": "Spartan StudyBuddy",
+  "description": "Private codebase onboarding, shared learning memory and Socratic coding guidance.",
+  "version": "2.0.0",
+  "publisher": "spartan-studybuddy",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:spartan.studyBuddy"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "spartan.connectProject",
+        "title": "Spartan StudyBuddy: Connect to Workspace"
+      },
+      {
+        "command": "spartan.ask",
+        "title": "Spartan StudyBuddy: Ask About Current Code"
+      },
+      {
+        "command": "spartan.hint",
+        "title": "Spartan StudyBuddy: Socratic Hint"
+      },
+      {
+        "command": "spartan.explain",
+        "title": "Spartan StudyBuddy: Explain Simply"
+      },
+      {
+        "command": "spartan.indexWorkspace",
+        "title": "Spartan StudyBuddy: Index Workspace"
+      }
+    ],
+    "configuration": {
+      "title": "Spartan StudyBuddy",
+      "properties": {
+        "spartan.api": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000",
+          "description": "DGX Spark StudyBuddy backend URL"
+        },
+        "spartan.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "StudyBuddy project/workspace ID"
+        },
+        "spartan.userId": {
+          "type": "string",
+          "default": "demo-spartan",
+          "description": "StudyBuddy user ID"
+        },
+        "spartan.indexOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Index supported workspace files when saved"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "spartan",
+          "title": "StudyBuddy",
+          "icon": "media/spartan.svg"
+        }
+      ]
+    },
+    "views": {
+      "spartan": [
+        {
+          "id": "spartan.studyBuddy",
+          "name": "StudyBuddy"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --check extension.js"
+  },
+  "license": "MIT"
+}

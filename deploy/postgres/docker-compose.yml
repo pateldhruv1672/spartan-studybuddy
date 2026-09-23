@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: ${PGVECTOR_IMAGE:-pgvector/pgvector:0.8.6-pg16}
+    container_name: spartan-studybuddy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-studybuddy}
+      POSTGRES_USER: ${POSTGRES_USER:-studybuddy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-studybuddy}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - spartan_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-studybuddy} -d ${POSTGRES_DB:-studybuddy}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  spartan_postgres_data:
+    name: spartan-studybuddy-postgres-data

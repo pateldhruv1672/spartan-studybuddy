@@ -27,7 +27,7 @@ BROWSER_PROVIDER = os.getenv("STUDYBUDDY_BROWSER_PROVIDER", "vllm-proxy").lower(
 BROWSER_MODEL = os.getenv("STUDYBUDDY_BROWSER_MODEL", "spartan-teacher")
 OLLAMA_MODEL = os.getenv("STUDYBUDDY_OLLAMA_MODEL", "llama3.1:8b")
 OLLAMA_BASE_URL = os.getenv("STUDYBUDDY_OLLAMA_URL", "http://127.0.0.1:11434")
-OLLAMA_NUM_CTX = int(os.getenv("STUDYBUDDY_OLLAMA_NUM_CTX", "32768"))
+OLLAMA_NUM_CTX = int(os.getenv("STUDYBUDDY_OLLAMA_NUM_CTX", "4096"))
 CDP_URL = os.getenv("STUDYBUDDY_CDP_URL", "http://127.0.0.1:9222")
 CHROME_PROFILE = os.getenv("STUDYBUDDY_CHROME_PROFILE", "Default")
 POLL_SECONDS = float(os.getenv("STUDYBUDDY_BRIDGE_POLL", "2"))
@@ -56,8 +56,8 @@ def _build_llm():
 
         return ChatOllama(
             model=OLLAMA_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            num_ctx=OLLAMA_NUM_CTX,
+            host=OLLAMA_BASE_URL,
+            ollama_options={"num_ctx": OLLAMA_NUM_CTX},
         )
 
     # Default: the Mac calls only StudyBuddy's authenticated proxy. The raw
@@ -105,6 +105,12 @@ async def run_browser_use(task: str) -> dict[str, Any]:
             use_vision=USE_VISION,
             max_actions_per_step=2,
             flash_mode=FLASH_MODE,
+            # TODO(before final demo): these are tightened for local dev/testing speed
+            # (browser-use defaults are max_failures=5, step_timeout=180; step_timeout was 60
+            # but too tight for local Ollama). Production/demo runs may want to be more
+            # patient, so reconsider these values.
+            max_failures=2,
+            step_timeout=120,
         )
         history = await agent.run(max_steps=MAX_STEPS)
         final = history.final_result() if hasattr(history, "final_result") else str(history)

@@ -22,6 +22,7 @@ from ..config import settings
 from .embeddings import embeddings
 from pgvector import Vector
 from .telemetry import INDEXED_CHUNKS
+from ..graph.facts import extract_facts
 
 CODE_EXTENSIONS={'.py','.js','.jsx','.ts','.tsx','.java','.go','.rs','.rb','.php','.swift','.kt','.scala','.sh','.sql','.r','.lua','.cs','.c','.h','.cpp','.hpp','.vue','.svelte'}
 TEXT_EXTENSIONS=CODE_EXTENSIONS|{'.md','.mdx','.txt','.json','.yaml','.yml','.toml','.xml','.html','.htm','.css','.scss','.ipynb','.csv'}
@@ -109,6 +110,18 @@ def _python_chunks(text:str)->tuple[list[Chunk],list[Symbol],list[tuple[str,str,
                     if isinstance(child.func,ast.Name): target=child.func.id
                     elif isinstance(child.func,ast.Attribute): target=child.func.attr
                     if target: edges.append((name,target,'calls'))
+            if isinstance(node,ast.ClassDef):
+                # Methods are symbols too (spec section 7); their chunk is the enclosing class chunk.
+                for m in node.body:
+                    if isinstance(m,(ast.FunctionDef,ast.AsyncFunctionDef)):
+                        mst=m.lineno; men=getattr(m,'end_lineno',mst); qn=f'{name}.{m.name}'
+                        symbols.append(Symbol(m.name,qn,'method',mst,men,lines[mst-1].strip() if lines else m.name,ast.get_docstring(m) or '',{'class':name}))
+                        for child in ast.walk(m):
+                            if isinstance(child,ast.Call):
+                                target=''
+                                if isinstance(child.func,ast.Name): target=child.func.id
+                                elif isinstance(child.func,ast.Attribute): target=child.func.attr
+                                if target: edges.append((qn,target,'calls'))
     # Index top-level glue/imports too.
     covered=set()
     for c in chunks:
@@ -148,8 +161,57 @@ def _generic_code_chunks(text:str,language:str)->tuple[list[Chunk],list[Symbol],
             if src: chunks.append(Chunk(src,'code',None,st,en,f'{language} code'))
     return chunks,symbols,[]
 
+# No token-aware tokenizer library is available to this backend (matching the embedding client, which
+# also has no local tokenizer), so — consistent with _document_chunks' existing character-windowed
+# fallback below — the bound is character-based: a conservative chars-per-token ratio for source code
+# (denser in tokens than prose, due to punctuation/identifiers), with a safety margin under the model's
+# actual configured context length for tokenizer variance the chunker cannot see.
+_CHARS_PER_TOKEN_SAFETY = 3.0
+_TOKEN_SAFETY_MARGIN = 0.85
+
+def max_chunk_chars() -> int:
+    return max(500, int(settings.embedding_max_model_len * _TOKEN_SAFETY_MARGIN * _CHARS_PER_TOKEN_SAFETY))
+
+def _split_oversized(c: Chunk, max_chars: int, overlap: int = 200) -> list[Chunk]:
+    """Deterministic char-windowed fallback for a single semantic chunk (a class, function, or the
+    symbol-boundary span _generic_code_chunks produces) that is itself larger than the embedding model
+    can safely accept whole. Preserves kind/metadata; start/end line and symbol/topic are adjusted per
+    part so citations still point at real lines and duplicate/near-duplicate parts never overlap fully."""
+    text = c.content
+    if len(text) <= max_chars:
+        return [c]
+    base_start = c.start_line or 1
+    parts: list[Chunk] = []
+    pos = 0
+    part_no = 0
+    while pos < len(text):
+        end = min(len(text), pos + max_chars)
+        piece = text[pos:end]
+        part_no += 1
+        seg_start = base_start + text[:pos].count('\n')
+        seg_end = base_start + text[:end].count('\n')
+        symbol = f'{c.symbol} (part {part_no})' if c.symbol else c.symbol
+        topic = f'{c.topic} (part {part_no})' if c.topic else c.topic
+        parts.append(Chunk(piece, c.kind, symbol, seg_start, seg_end, topic, c.metadata))
+        if end >= len(text):
+            break
+        pos = max(pos + 1, end - overlap)  # small overlap so a boundary-crossing reference isn't lost; always progresses
+    return parts
+
+def _bounded(chunks: list[Chunk]) -> list[Chunk]:
+    limit = max_chunk_chars()
+    out: list[Chunk] = []
+    for c in chunks:
+        out.extend(_split_oversized(c, limit))
+    return out
+
 def code_chunks(text:str,language:str)->tuple[list[Chunk],list[Symbol],list[tuple[str,str,str]]]:
-    return _python_chunks(text) if language in {'py','python'} else _generic_code_chunks(text,language)
+    # Applied once here rather than inside each chunker: both the AST-based Python path and the
+    # pattern-based generic path build chunks spanning a detected symbol boundary with no size cap of
+    # their own (unlike _document_chunks' 2400-char windows), so either can produce an oversized chunk
+    # for a large class/function. This is the single choke point both funnel through.
+    chunks, symbols, edges = _python_chunks(text) if language in {'py','python'} else _generic_code_chunks(text,language)
+    return _bounded(chunks), symbols, edges
 def _delete_document(conn, document_id: str) -> None:
     # Child chunks, symbols and edges cascade from indexed_documents in PostgreSQL.
     conn.execute('DELETE FROM indexed_documents WHERE id=?', (document_id,))
@@ -183,6 +245,7 @@ def index_text(*, project_id: str, source_type: str, source_name: str, content: 
         edges = []
 
     vectors = embeddings.embed_batches([c.content for c in chunks])
+    facts = extract_facts(content, source_name, language)
     with db() as conn:
         _delete_document(conn, document_id)
         conn.execute(
@@ -202,6 +265,8 @@ def index_text(*, project_id: str, source_type: str, source_name: str, content: 
                 (cid, document_id, project_id, i, c.kind, c.symbol, c.start_line, c.end_line,
                  c.content, c.topic, json.dumps(c.metadata or {}), Vector(v.tolist()))
             )
+        conn.execute('INSERT INTO kg_facts(document_id,project_id,facts_json,partial) VALUES(?,?,?,0) ON CONFLICT(document_id) DO UPDATE SET facts_json=excluded.facts_json,partial=0,extracted_at=CURRENT_TIMESTAMP',
+                     (document_id, project_id, json.dumps(facts)))
         for s in symbols:
             sid = str(uuid.uuid5(uuid.NAMESPACE_URL, f'{document_id}:{s.qualified_name}:{s.start_line}'))
             conn.execute(
@@ -242,13 +307,21 @@ def index_path(project_id: str, path: Path, root: Path | None = None,
 
 def index_repository(project_id: str, root: Path, source_id: str | None = None) -> dict[str, Any]:
     files = []
-    totals = {'files': 0, 'chunks': 0, 'symbols': 0, 'skipped': 0}
+    totals = {'files': 0, 'chunks': 0, 'symbols': 0, 'skipped': 0, 'failed': 0}
     for p in root.rglob('*'):
         if any(part in SKIP_DIRS for part in p.parts):
             continue
         if not p.is_file():
             continue
-        result = index_path(project_id, p, root, source_id)
+        try:
+            result = index_path(project_id, p, root, source_id)
+        except Exception as exc:
+            # One file failing (an unexpected encoding, a parser edge case, ...) must not discard an
+            # otherwise-valid repository index; record it and keep going, same as the existing
+            # 'skipped' path already does for unsupported/oversized files.
+            totals['failed'] += 1
+            files.append({'path': str(p.relative_to(root)), 'failed': True, 'error': str(exc)[:300]})
+            continue
         if 'skipped' in result:
             totals['skipped'] += 1
             continue

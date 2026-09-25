@@ -1,83 +1,81 @@
 #!/usr/bin/env python3
-"""Export a modelopt NVFP4-QLoRA checkpoint to a base_model/ + adapter layout vLLM can serve
-with --enable-lora. Adapted near-verbatim from NVIDIA TensorRT-Model-Optimizer's
-examples/llm_qat/export.py.
+"""Export a modelopt-quantized checkpoint (from quantize.py) to a clean HF layout vLLM can load,
+via modelopt's `export_hf_checkpoint()`. Originally adapted from NVIDIA TensorRT-Model-Optimizer's
+examples/llm_qat/export.py, since rewritten for modelopt 0.37.0's newer, simpler export API and for
+plain (non-QLoRA) checkpoints -- see the note below.
 
 Usage:
     python3 training/nvfp4/export_nvfp4.py \
-        --pyt-ckpt-path artifacts/socratic-nvfp4-lora \
-        --export-path artifacts/socratic-nvfp4-lora-hf
+        --pyt-ckpt-path artifacts/socratic-nvfp4-quantized-final \
+        --export-path artifacts/socratic-nvfp4-final
 """
 from __future__ import annotations
 
 import argparse
-import json
-import warnings
 from pathlib import Path
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+from transformers import AutoModelForCausalLM, AutoModelForImageTextToText, AutoTokenizer
 
 import modelopt.torch.opt as mto
-from modelopt.torch.export.convert_hf_config import convert_hf_quant_config_format
-from modelopt.torch.export.unified_export_hf import _export_transformers_checkpoint
-from modelopt.torch.opt.conversion import ModeloptStateManager, restore_from_modelopt_state
-from modelopt.torch.quantization.utils import set_quantizer_state_dict
-from modelopt.torch.utils import print_rank_0
+from modelopt.torch.export.unified_export_hf import export_hf_checkpoint
+from modelopt.torch.opt.conversion import ModeloptStateManager
 
 mto.enable_huggingface_checkpointing()
 
+# NOTE: modelopt 0.37.0's public export API is `export_hf_checkpoint()` (writes hf_quant_config.json
+# + quantization_config + safetensors straight to export_dir in one call). The older two-step
+# `_export_transformers_checkpoint(model, is_modelopt_qlora=...)` used by NVIDIA's llm_qat/export.py
+# example does not exist in this version, so this script no longer supports the QLoRA
+# (base_model/ + adapter) export layout that function produced -- our pipeline never used it since
+# we merge the LoRA adapter into bf16 weights *before* quantizing (see merge_bf16_lora.py), so the
+# quantized checkpoint here is always a plain model with no `peft_config`.
 
-def get_model(ckpt_path: str, device: str = "cuda"):
+
+def get_model(ckpt_path: str, model_class: str, device: str = "cuda"):
     device_map = "cpu" if device == "cpu" else "auto"
-    model = AutoModelForCausalLM.from_pretrained(ckpt_path, device_map=device_map)
-    if hasattr(model, "peft_config") and not ModeloptStateManager.is_converted(model):
-        modelopt_state = mto.load_modelopt_state(f"{ckpt_path}/modelopt_state_train.pth")
-        restore_from_modelopt_state(model, modelopt_state)
-        modelopt_weights = modelopt_state.pop("modelopt_state_weights", None)
-        if modelopt_weights is not None:
-            set_quantizer_state_dict(model, modelopt_weights)
-        print_rank_0("Restored modelopt state")
+    model_cls = AutoModelForImageTextToText if model_class == "image-text-to-text" else AutoModelForCausalLM
+    # enable_huggingface_checkpointing() patches from_pretrained to also restore the modelopt
+    # quantization state (modelopt_state.pth, written by quantize.py's model.save_pretrained) --
+    # nothing further to do here as long as that file sits next to the checkpoint.
+    # NOTE: this must load a checkpoint saved by quantize.py WITHOUT mtq.compress() -- i.e. the
+    # fake-quantized (calibrated, still full-shape) model. export_hf_checkpoint() below runs its
+    # own forward pass to resmooth/fuse quantizer scales, then does the real low-bit packing
+    # itself. A pre-compressed (physically packed) checkpoint has no working real-quant GEMM here
+    # (needs tensorrt_llm, not installed) and both loading and that forward pass will break with
+    # shape mismatches -- see quantize.py's comment at its (removed) mtq.compress() call.
+    model = model_cls.from_pretrained(ckpt_path, dtype=torch.bfloat16, device_map=device_map, trust_remote_code=True)
+    if hasattr(model, "peft_config"):
+        raise SystemExit(
+            "This checkpoint has a peft_config (QLoRA-style adapter-on-quantized-base). That export "
+            "path needs modelopt's older _export_transformers_checkpoint API, which this modelopt "
+            "version (0.37.0) removed. Our pipeline merges the adapter before quantizing, so this "
+            "script only supports plain (non-adapter) checkpoints; if you see this, something upstream "
+            "changed."
+        )
+    assert ModeloptStateManager.is_converted(model), (
+        f"{ckpt_path} has no restored modelopt quantization state -- is modelopt_state.pth present?"
+    )
     return model
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--pyt-ckpt-path", required=True)
+    p.add_argument("--model-class", default="image-text-to-text", choices=["causal-lm", "image-text-to-text"])
     p.add_argument("--device", default="cuda")
     p.add_argument("--export-path", default="exported_model")
     args = p.parse_args()
 
-    model = get_model(args.pyt_ckpt_path, args.device)
-    tokenizer = AutoTokenizer.from_pretrained(args.pyt_ckpt_path)
-    is_qlora = hasattr(model, "peft_config")
+    model = get_model(args.pyt_ckpt_path, args.model_class, args.device)
+    tokenizer = AutoTokenizer.from_pretrained(args.pyt_ckpt_path, trust_remote_code=True)
 
     export_dir = Path(args.export_path)
     export_dir.mkdir(parents=True, exist_ok=True)
-    base_model_dir = export_dir / "base_model" if is_qlora else export_dir
-    base_model_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        post_state_dict, hf_quant_config = _export_transformers_checkpoint(model, is_modelopt_qlora=is_qlora)
-        with open(f"{base_model_dir}/hf_quant_config.json", "w") as f:
-            json.dump(hf_quant_config, f, indent=4)
-        hf_quant_config = convert_hf_quant_config_format(hf_quant_config)
-
-        if is_qlora:
-            model.base_model.save_pretrained(f"{base_model_dir}", state_dict=post_state_dict)
-            model.save_pretrained(export_dir)
-        else:
-            model.save_pretrained(export_dir, state_dict=post_state_dict)
-
-        config_data = model.config.to_dict()
-        config_data["quantization_config"] = hf_quant_config
-        with open(f"{base_model_dir}/config.json", "w") as f:
-            json.dump(config_data, f, indent=4)
-
-        tokenizer.save_pretrained(export_dir)
-        print(f"Exported to {export_dir} (base_model/ + adapter)")
-    except Exception:
-        warnings.warn("Export failed; the modelopt-optimized state_dict can be saved with torch.save for inspection.")
-        raise
+    export_hf_checkpoint(model, dtype=torch.bfloat16, export_dir=export_dir, save_modelopt_state=False)
+    tokenizer.save_pretrained(export_dir)
+    print(f"Exported to {export_dir}")
 
 
 if __name__ == "__main__":

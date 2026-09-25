@@ -1,13 +1,14 @@
 from __future__ import annotations
-import json, os, re, shutil, subprocess, uuid
+import base64, json, os, re, shutil, subprocess, uuid
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urljoin, urlparse, parse_qs
 import httpx
 from bs4 import BeautifulSoup
 
 from ..config import settings
 from ..db import db
 from .indexer import index_bytes,index_repository,index_text
+from .security import github_repository_url,public_https_url
 
 class SourceError(RuntimeError): pass
 
@@ -30,18 +31,23 @@ def _safe_repo_name(url:str)->str:
     p=urlparse(url).path.rstrip('/').split('/')[-1] or 'repository';return re.sub(r'[^A-Za-z0-9_.-]+','-',p.removesuffix('.git'))
 
 def ingest_github(project_id:str,url:str,branch:str|None=None,token:str|None=None)->dict:
-    # Works for GitHub HTTPS/SSH repository URLs. The token is only used for the clone command and never persisted.
+    url=github_repository_url(url)
+    if branch and (branch.startswith('-') or not re.fullmatch(r'[A-Za-z0-9._/-]{1,200}',branch)):
+        raise SourceError('Invalid branch name')
     name=_safe_repo_name(url);sid=_source(project_id,'github',name,url,{'branch':branch})
     dest=settings.repos_dir/project_id/name
     if dest.exists():shutil.rmtree(dest)
-    clone_url=url;secret=token or settings.github_token
-    if secret and url.startswith('https://github.com/'):
-        clone_url=url.replace('https://github.com/',f'https://x-access-token:{secret}@github.com/',1)
-    cmd=['git','clone','--depth','1']
+    secret=token or settings.github_token
+    cmd=['git','-c','protocol.file.allow=never','-c','protocol.ext.allow=never'];git_env=os.environ.copy()
+    if secret:
+        encoded=base64.b64encode(f'x-access-token:{secret}'.encode()).decode()
+        git_env['GIT_CONFIG_COUNT']='1';git_env['GIT_CONFIG_KEY_0']='http.https://github.com/.extraheader'
+        git_env['GIT_CONFIG_VALUE_0']=f'AUTHORIZATION: basic {encoded}'
+    cmd += ['clone','--depth','1']
     if branch:cmd+=['--branch',branch]
-    cmd += [clone_url,str(dest)]
+    cmd += ['--',url,str(dest)]
     try:
-        p=subprocess.run(cmd,capture_output=True,text=True,timeout=600)
+        p=subprocess.run(cmd,capture_output=True,text=True,timeout=600,env=git_env)
         if p.returncode!=0:raise SourceError(re.sub(re.escape(secret),'***',p.stderr) if secret else p.stderr)
         result=index_repository(project_id,dest,sid);_set_status(sid,'ready',{'branch':branch,'root':str(dest),'commit':_git_commit(dest),**{k:v for k,v in result.items() if k!='documents'}})
         return {'source_id':sid,'kind':'github','name':name,'commit':_git_commit(dest),**result}
@@ -92,15 +98,37 @@ def ingest_gdrive(project_id:str,url:str,access_token:str|None=None)->dict:
             headers={'Authorization':f'Bearer {token}'} if token else {};r=client.get(download,headers=headers);r.raise_for_status();mime=r.headers.get('content-type','application/octet-stream').split(';')[0];result=index_bytes(project_id=project_id,source_type='gdrive',source_name=name,data=r.content,source_uri=url,mime_type=mime,source_id=sid,metadata={'file_id':fid,'drive_kind':kind});_set_status(sid,'ready',{'file_id':fid,'drive_kind':kind});return {'source_id':sid,'kind':'gdrive','name':name,**result}
     except Exception as exc:_set_status(sid,'failed',{'error':str(exc)[:1000]});raise
 
+def _fetch_public(url:str)->tuple[str,bytes,str]:
+    """Fetch with redirect revalidation and a hard response-size ceiling."""
+    current=public_https_url(url);cap=settings.max_remote_mb*1024*1024
+    with httpx.Client(follow_redirects=False,timeout=30,headers={'User-Agent':'SpartanStudyBuddy/2.0'}) as client:
+        for _ in range(6):
+            current=public_https_url(current)
+            with client.stream('GET',current) as response:
+                if response.status_code in {301,302,303,307,308}:
+                    location=response.headers.get('location')
+                    if not location:raise SourceError('Redirect has no location')
+                    current=urljoin(current,location);continue
+                response.raise_for_status()
+                declared=int(response.headers.get('content-length') or 0)
+                if declared>cap:raise SourceError('Remote resource is too large')
+                chunks=[];size=0
+                for chunk in response.iter_bytes():
+                    size+=len(chunk)
+                    if size>cap:raise SourceError('Remote resource is too large')
+                    chunks.append(chunk)
+                return str(response.url),b''.join(chunks),response.headers.get('content-type','').split(';')[0]
+        raise SourceError('Too many redirects')
+
 def ingest_web(project_id:str,url:str)->dict:
+    url=public_https_url(url)
     sid=_source(project_id,'web',urlparse(url).netloc or 'web',url)
     try:
-        with httpx.Client(follow_redirects=True,timeout=90,headers={'User-Agent':'SpartanStudyBuddy/2.0'}) as client:r=client.get(url);r.raise_for_status()
-        ctype=r.headers.get('content-type','').split(';')[0]
+        final_url,data,ctype=_fetch_public(url)
         if ctype.startswith('application/pdf') or url.lower().endswith('.pdf'):
-            name=Path(urlparse(str(r.url)).path).name or 'document.pdf';result=index_bytes(project_id=project_id,source_type='web',source_name=name,data=r.content,source_uri=url,mime_type=ctype,source_id=sid)
+            name=Path(urlparse(final_url).path).name or 'document.pdf';result=index_bytes(project_id=project_id,source_type='web',source_name=name,data=data,source_uri=url,mime_type=ctype,source_id=sid)
         else:
-            soup=BeautifulSoup(r.text,'lxml')
+            soup=BeautifulSoup(data,'lxml')
             for t in soup(['script','style','nav','footer','noscript','aside']):t.decompose()
             title=(soup.title.string.strip() if soup.title and soup.title.string else url);text='\n'.join(x.strip() for x in soup.get_text('\n').splitlines() if x.strip());result=index_text(project_id=project_id,source_type='web',source_name=title,content=text,source_uri=url,mime_type=ctype,source_id=sid,metadata={'title':title})
         _set_status(sid,'ready');return {'source_id':sid,'kind':'web',**result}

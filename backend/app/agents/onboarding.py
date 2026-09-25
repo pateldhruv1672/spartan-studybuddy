@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json,secrets,uuid
+import asyncio,copy,json,re,secrets,uuid
 from ..db import db
 from ..services.indexer import project_map
 from ..services.retrieval import retrieve,format_context
@@ -14,29 +14,240 @@ FALLBACK={
  'resource_search_topics':['software architecture fundamentals']
 }
 
-async def create_onboarding(user_id:str,project_id:str,target_role:str,level:str,weeks:int,hours_per_week:int,background:str='',is_public:bool=False)->dict:
+# Used instead of FALLBACK when no repository/document evidence is connected yet, so a failed or
+# invalid model call never hands the learner a "trace the repository" plan for a repository that
+# was never connected. Content here leans entirely on public resources (browser-use curates them),
+# since there is no private codebase to walk through.
+NO_REPO_FALLBACK={
+ 'summary':'A role-specific self-study curriculum built from public learning resources. Connect a repository later for codebase-grounded modules.',
+ 'prerequisites':[{'concept':'Core language and tooling fundamentals for the target role','priority':'essential','reason':'Needed before role-specific material makes sense.'}],
+ 'modules':[{'id':'m1','title':'Foundations','outcome':'Build the prerequisite mental models for this role','items':[{'id':'i1','type':'external_resource','title':'Curated public resource','minutes':30,'xp':60,'topic':'role fundamentals'},{'id':'i2','type':'checkpoint','title':'Summarize what you learned in your own words','minutes':10,'xp':80}]}],
+ 'exercises':[{'id':'e1','title':'Build a small project applying the core concepts for this role','difficulty':'beginner','acceptance':['Apply at least two core concepts','Explain one design decision you made'],'xp':180}],
+ 'resource_search_topics':['role fundamentals self-study roadmap']
+}
+
+class GraphNotReady(RuntimeError):
+    pass
+
+
+async def _llm_skeleton(user_id:str,project_id:str,target_role:str,level:str,weeks:int,hours_per_week:int,background:str,has_repo:bool,approx_modules:int,compact:dict|None,evidence:str,hits:list)->dict|None:
+    """Stage 1: one small, holistic call that only decides curriculum SHAPE (summary, prerequisites,
+    one final exercise, module id/title/outcome/topic) -- deliberately excludes items[], since deciding
+    per-module content is a separate, narrower question handled by _llm_module_items(). Keeping this
+    call's own output small and its schema unambiguous matters because of two failure modes measured
+    directly against this model: (1) with thinking on, a large/loosely-scoped ask made it redraft the
+    same content inside <think> repeatedly ("let me make these more specific") until the whole token
+    budget was gone before it ever reached the JSON -- fixed by calling router.json() (enable_thinking
+    defaults to False there); (2) even with thinking off, an earlier version of this prompt that didn't
+    explicitly forbid nesting exercises under each module got misread that way, so it started writing
+    2 exercises x N modules and ran out of budget mid-object -- fixed by being explicit below that
+    exercises is a single top-level array with exactly one entry, not a per-module field."""
+    if has_repo:
+        prompt=f"""Design the SHAPE of a {weeks}-week gamified onboarding curriculum for a {level} {target_role}. Time budget: {hours_per_week} hours/week. Background: {background or 'unknown'}.
+Repository map: {json.dumps(compact)}
+Private evidence:\n{evidence}
+Return JSON with exactly these top-level keys:
+summary (string),
+prerequisites (array of {{concept,priority,reason}}),
+modules (array of {{id,title,outcome,topic}} only -- topic = one generic, non-private search phrase for public resources on this module's subject, never private function/file/company names. Modules must NOT contain an "exercises" or "items" key),
+exercises (top-level array with EXACTLY ONE entry: a single final applied project, {{id,title,difficulty,description,repo_refs,acceptance,xp}}).
+The sequence must teach generic prerequisites before internal code, then guided codebase walkthroughs, then role-specific material, ending in that one applied project."""
+    else:
+        prompt=f"""Design the SHAPE of a {weeks}-week gamified self-study curriculum for a {level} {target_role}. Time budget: {hours_per_week} hours/week. Learner background: {background or 'unknown'}.
+No company repository or internal documents are connected yet -- do not reference any codebase, internal files, or company-specific systems. Build entirely from general, publicly-available engineering knowledge appropriate to this role, level and background.
+Design roughly {approx_modules} modules that together span the full {weeks} weeks (each module ~{max(1,round(weeks/approx_modules))} week(s) of material at {hours_per_week}h/week), moving from foundational prerequisites to progressively more advanced, role-specific material and a final applied project.
+Return JSON with exactly these top-level keys:
+summary (string),
+prerequisites (array of {{concept,priority,reason}}),
+modules (array of {{id,title,outcome,topic}} only -- topic = a distinct, specific public-search phrase for this module's subject, concrete and varied, not generic, since it drives a browser research agent that finds real videos/docs/articles/papers for it. Modules must NOT contain an "exercises" or "items" key),
+exercises (top-level array with EXACTLY ONE entry: a single final applied project, {{id,title,difficulty,description,acceptance,xp}})."""
+    fb=FALLBACK if has_repo else NO_REPO_FALLBACK
+    skeleton_fb={
+        'summary':fb['summary'],'prerequisites':fb['prerequisites'],'exercises':fb['exercises'],
+        'modules':[{'id':m['id'],'title':m['title'],'outcome':m['outcome'],'topic':(m['items'][0].get('topic') if m.get('items') else 'role fundamentals')} for m in fb['modules']],
+    }
+    skeleton_max_tokens=min(3200,1000+approx_modules*230)
+    skeleton=await router.json(system='You are an elite engineering enablement architect. Decide the SHAPE of an evidence-grounded, role-specific curriculum that moves a new hire from prerequisites to safe contribution. Do not write module items yet.',user=prompt,tier='reasoning',fallback=skeleton_fb,max_tokens=skeleton_max_tokens,user_id=user_id,project_id=project_id,agent='onboarding_skeleton',retrieved=[{'citation':x.get('citation'),'source':x.get('source_name')} for x in hits])
+    if skeleton is skeleton_fb or not isinstance(skeleton.get('modules'),list) or not skeleton['modules']:
+        return None
+    return skeleton
+
+
+async def _llm_module_items(user_id:str,project_id:str,target_role:str,level:str,background:str,has_repo:bool,module:dict)->list[dict]:
+    """Stage 2: one bounded call per module, scoped ONLY to that module's own title/outcome/topic.
+    Run concurrently (asyncio.gather in _llm_plan) across all modules -- each call reasons about a
+    narrow question, so its think+answer token cost stays roughly constant regardless of how many
+    weeks/modules the overall curriculum has, unlike asking for every module's items in one call.
+    Falls back to a 2-item stub for JUST this module on failure, instead of failing the whole plan."""
+    mid=module.get('id') or 'm1'; topic=module.get('topic') or 'role fundamentals'
+    stub=[{'id':f'{mid}-i1','type':'external_resource','title':'Curated public resource','minutes':30,'xp':60,'topic':topic},
+          {'id':f'{mid}-i2','type':'checkpoint','title':'Summarize what you learned in your own words','minutes':10,'xp':80}]
+    item_type_hint="'external_resource', 'checkpoint' or 'exercise'" if not has_repo else "'internal_walkthrough', 'checkpoint' or 'exercise'"
+    repo_field=',"repo_refs":[str]' if has_repo else ''
+    prompt=f"""For one module of a {level} {target_role}'s onboarding curriculum (background: {background or 'unknown'}):
+Module: "{module.get('title')}" -- outcome: {module.get('outcome')} -- subject/topic: "{topic}"
+List 2-4 concrete learning items for THIS module only.
+Return JSON: {{"items":[{{"id":str,"type":{item_type_hint},"title":str,"minutes":int,"xp":int,"topic":"{topic}"{repo_field}}}]}}
+Every item's "topic" must be exactly "{topic}"."""
+    out=await router.json(system='You are an elite engineering enablement architect. Write concrete, specific learning items for ONE onboarding module.',user=prompt,tier='reasoning',fallback={'items':stub},max_tokens=1400,user_id=user_id,project_id=project_id,agent='onboarding_module_items',metadata={'module_id':mid,'topic':topic})
+    items=out.get('items')
+    return items if isinstance(items,list) and items else stub
+
+
+async def _llm_plan(user_id:str,project_id:str,target_role:str,level:str,weeks:int,hours_per_week:int,background:str)->tuple[dict,list]:
     pmap=project_map(project_id)
     hits=await retrieve(project_id,f'architecture setup entry point tests API pipeline data model dependencies {target_role}',top_k=14,rerank=True)
     evidence=format_context(hits,22000)
-    compact={'documents':pmap['documents'],'languages':pmap['languages'],'symbols':[{'name':s['name'],'kind':s['kind'],'language':s['language']} for s in pmap['symbols'][:240]],'edges':pmap['edges'][:240]}
-    prompt=f'''Create a {weeks}-week gamified onboarding curriculum for a {level} {target_role}. Time budget: {hours_per_week} hours/week. Background: {background or 'unknown'}.
-Repository map: {json.dumps(compact)}
-Private evidence:\n{evidence}
-Return JSON with:
-summary,
-prerequisites[] (concept,priority,reason),
-modules[] where each module has id,title,outcome,items[]; each item has id,type,title,minutes,xp,repo_refs[],topic,checkpoint_question,
-exercises[] with id,title,difficulty,description,repo_refs[],acceptance[],xp,
-resource_search_topics[].
-The sequence must teach generic prerequisites before internal code, then guided codebase walkthroughs, then role-specific exercises and checkpoints. Use real repository evidence. External search topics MUST contain generic concepts only: never private function names, filenames, company names, source snippets, secrets or business logic.'''
-    plan=await router.json(system='You are an elite engineering enablement architect. Build evidence-grounded, role-specific curricula that move a new hire from prerequisites to safe contribution.',user=prompt,tier='reasoning',fallback=FALLBACK,user_id=user_id,project_id=project_id,agent='onboarding_planner',retrieved=[{'citation':x.get('citation'),'source':x.get('source_name')} for x in hits])
-    path_id=str(uuid.uuid4()); invite_code=secrets.token_urlsafe(6);title=f'{target_role} · {weeks}-week onboarding'
+    has_repo=bool(hits) or bool(pmap.get('documents')) or bool(pmap.get('symbols'))
+    approx_modules=max(2,round(weeks/2))
+    compact={'documents':pmap['documents'],'languages':pmap['languages'],'symbols':[{'name':s['name'],'kind':s['kind'],'language':s['language']} for s in pmap['symbols'][:240]],'edges':pmap['edges'][:240]} if has_repo else None
+    fb=copy.deepcopy(FALLBACK if has_repo else NO_REPO_FALLBACK)      # never hand out (or mutate) the shared module-level template
+
+    skeleton=await _llm_skeleton(user_id,project_id,target_role,level,weeks,hours_per_week,background,has_repo,approx_modules,compact,evidence,hits)
+    if skeleton is None:
+        # Skeleton (curriculum shape) itself failed/invalid: no per-module calls to make, fall all the way back.
+        plan=fb
+        warning='The local model was unavailable or returned invalid output, so this is a generic placeholder roadmap' + ('.' if has_repo else ', not one generated for your role/background.') + ' Review or regenerate it before sharing.'
+        plan['meta']={'provenance':'fallback','requires_review':True,'warning':warning,'has_repo':has_repo}
+        return plan,hits
+
+    # Fan out: each module's items are an independent, narrow question, so generate them concurrently
+    # rather than paying for N modules' worth of thinking-mode overhead serially in one call.
+    item_lists=await asyncio.gather(*[_llm_module_items(user_id,project_id,target_role,level,background,has_repo,m) for m in skeleton['modules']])
+    modules=[{'id':m.get('id') or f'm{i+1}','title':m.get('title','Module'),'outcome':m.get('outcome',''),'items':items} for i,(m,items) in enumerate(zip(skeleton['modules'],item_lists))]
+    plan={
+        'summary':skeleton.get('summary') or fb['summary'],
+        'prerequisites':skeleton.get('prerequisites') or fb['prerequisites'],
+        'modules':modules,
+        'exercises':skeleton.get('exercises') or fb['exercises'],
+        'resource_search_topics':[m.get('topic') for m in skeleton['modules'] if m.get('topic')],
+        'meta':{'provenance':'generated','has_repo':has_repo},
+    }
+    return plan,hits
+
+def _attach_quizzes(project_id:str,plan:dict)->dict:
+    """Give a legacy (LLM-only) plan a quiz every other module (not every module -- appending one to
+    every single module made short curricula feel dominated by quizzes rather than learning content,
+    since most modules only have 2-4 items to begin with), seeded from the graph nodes its repo_refs
+    point at when a repo is connected."""
+    from ..graph.view import load_view
+    from ..graph.curriculum import PASS_THRESHOLD
+    v=load_view(project_id)
+    if v is None:return plan
+    by_path={n['path']:i for i,n in v.nodes.items() if n['path'] and n['kind'] in ('file','doc')}
+    for mi,m in enumerate(plan.get('modules',[])):
+        m.setdefault('id',f'm{mi}')
+        items=[it for it in m.get('items',[]) if it.get('type')!='quiz']
+        for k,it in enumerate(items):it.setdefault('id',f"{m['id']}-i{k+1}")
+        if mi%2==1:
+            refs=[by_path[r] for it in items for r in it.get('repo_refs',[]) if r in by_path]
+            items=items+[{'id':f"{m['id']}-quiz",'type':'quiz','title':'Section quiz','minutes':9,'xp':70,'topic':'Check your understanding','quiz':{'question_count':5,'pass_threshold':PASS_THRESHOLD}}]
+            m['quiz_seed']={'node_ids':refs,'concept_ids':[],'kind':'subsystem'}
+        m['items']=items
+    plan['meta']={**plan.get('meta',{}),'engine':'llm','quiz_pass_threshold':PASS_THRESHOLD,'gating':False}
+    return plan
+
+async def _polish(plan:dict,user_id:str,project_id:str)->dict:
+    """Optional wording polish by the local model. Structure, ids and refs are never touched; any failure keeps the template text."""
+    import asyncio
+    try:
+        brief=[{'id':m['id'],'title':m['title'],'kind':m['kind'],'objectives':m.get('objectives',[])} for m in plan['modules']]
+        out=await asyncio.wait_for(router.json(system='You are an engineering onboarding writer. Rewrite the summary and module outcomes to be concrete, motivating and accurate to the given titles/objectives. Do not invent facts. Return {"summary": str, "outcomes": {"<module id>": str}}.',user=json.dumps({'role':plan['meta'].get('role_title'),'modules':brief}),tier='instruct',fallback={'_fallback':True},agent='onboarding_polish',user_id=user_id,project_id=project_id),timeout=45)
+    except Exception:return plan
+    if '_fallback' in out:return plan
+    if isinstance(out.get('summary'),str) and 20<len(out['summary'])<600:plan['summary']=out['summary']
+    for m in plan['modules']:
+        o=(out.get('outcomes') or {}).get(m['id'])
+        if isinstance(o,str) and 10<len(o)<400:m['outcome']=o
+    plan['meta']['polished']=True
+    return plan
+
+async def create_onboarding(user_id:str,project_id:str,target_role:str,level:str,weeks:int,hours_per_week:int,background:str='',is_public:bool=False,engine:str|None=None,role_id:str|None=None,quiz_questions:int=5,scope:list[str]|None=None)->dict:
+    import hashlib
+    from ..services.locks import workflow_lock
+    config=[user_id,project_id,role_id or target_role.strip().lower(),level,weeks,hours_per_week,background,is_public,engine,quiz_questions,sorted(scope or [])]
+    key=hashlib.sha256(json.dumps(config).encode()).hexdigest()
+    async with workflow_lock(f'create-onboarding:{key}'):
+        with db() as conn:
+            existing=conn.execute('SELECT id FROM onboarding_paths WHERE configuration_key=?',(key,)).fetchone()
+        if existing:
+            path=get_path(existing['id'],user_id)
+            if path['plan'].get('meta',{}).get('provenance') != 'fallback':return path
+        result=await _create_onboarding(user_id,project_id,target_role,level,weeks,hours_per_week,background,is_public,engine,role_id,quiz_questions,scope)
+        if result['plan'].get('meta',{}).get('provenance') != 'fallback':
+            with db() as conn:conn.execute('UPDATE onboarding_paths SET configuration_key=? WHERE id=?',(key,result['id']))
+        return result
+
+
+async def _create_onboarding(user_id:str,project_id:str,target_role:str,level:str,weeks:int,hours_per_week:int,background:str='',is_public:bool=False,engine:str|None=None,role_id:str|None=None,quiz_questions:int=5,scope:list[str]|None=None)->dict:
+    from ..graph.view import load_view
+    from ..graph.curriculum import build_plan
+    from ..graph import quiz as quizmod
+    graph_ready=load_view(project_id) is not None
+    engine=engine or ('graph' if graph_ready else 'llm')
+    if engine=='graph' and not graph_ready:raise GraphNotReady('Build the knowledge graph first (POST /api/projects/{id}/graph/rebuild).')
+    if engine=='graph':
+        with db() as conn:
+            mastery={r['topic']:r['score'] for r in conn.execute('SELECT topic,score FROM mastery WHERE user_id=? AND project_id=?',(user_id,project_id)).fetchall()}
+        plan=build_plan(project_id,role_id or target_role,level,weeks,hours_per_week,background,scope,quiz_questions,mastery=mastery if not is_public else {})
+        plan=await _polish(plan,user_id,project_id)
+        plan['meta']['provenance']='graph'
+        plan['meta']['polish']='applied' if plan['meta'].get('polished') else 'skipped'
+        title=f"{plan['meta']['role_title']} · {weeks}-week onboarding"
+    else:
+        plan,_hits=await _llm_plan(user_id,project_id,target_role,level,weeks,hours_per_week,background)
+        plan=_attach_quizzes(project_id,plan)
+        plan.setdefault('meta',{}).setdefault('provenance','generated')
+        if plan['meta'].get('requires_review'):is_public=False     # a placeholder is never shared automatically
+        title=f'{target_role} · {weeks}-week onboarding'
+    path_id=str(uuid.uuid4()); invite_code=secrets.token_urlsafe(6)
     with db() as conn:
         conn.execute('INSERT INTO onboarding_paths(id,project_id,creator_id,title,target_role,level,weeks,hours_per_week,is_public,invite_code,plan_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(path_id,project_id,user_id,title,target_role,level,weeks,hours_per_week,int(is_public),invite_code,json.dumps(plan)))
         conn.execute('INSERT OR IGNORE INTO onboarding_members(path_id,user_id) VALUES(?,?)',(path_id,user_id))
-    topics=[str(x) for x in (plan.get('resource_search_topics') or [])[:12] if x]
+    if graph_ready and any(i.get('type')=='quiz' for m in plan.get('modules',[]) for i in m.get('items',[])):
+        await quizmod.generate_quizzes(path_id,use_llm=False)
+    from ..services.resources import approved_topics,sanitize_free_topics
+    # approved_topics()'s catalog allowlist only makes sense for the graph engine, whose topics are
+    # meant to correspond 1:1 to pre-vetted graph concepts. The LLM engine invents topics freely
+    # (with or without a connected repo), so they were never guaranteed to be catalog members --
+    # using the strict allowlist there silently dropped nearly every topic and meant the resource
+    # scout / browser-use job almost never actually fired. Pattern-sanitize instead.
+    raw_topics=plan.get('resource_search_topics') or []
+    topics=approved_topics(raw_topics) if engine=='graph' else sanitize_free_topics(raw_topics)
     job=create_job(user_id,'resource_scout',{'mode':'onboarding','path_id':path_id,'topics':topics,'instruction':'Find authoritative public resources for these SANITIZED generic concepts. Include YouTube, official docs, strong engineering blogs, books/catalog references, arXiv/research papers when appropriate. Return structured resources with topic mapping and estimated learning time. Never search private repository identifiers.'},project_id) if topics else None
     return get_path(path_id,user_id)|{'resource_job':job}
+
+async def for_role(user_id:str,project_id:str,role:str|None,level:str='junior')->dict:
+    from ..services.locks import workflow_lock
+    async with workflow_lock(f'role-onboarding:{project_id}'):
+        return await _for_role(user_id,project_id,role,level)
+
+
+async def _for_role(user_id:str,project_id:str,role:str|None,level:str='junior')->dict:
+    """Get-or-create the shared role path for this workspace's current graph, then enrol the user (new-hire entry point)."""
+    from ..graph.view import load_view
+    from ..graph.roles import resolve_role
+    v=load_view(project_id)
+    if v is None:
+        # A new hire should never hit a dead end: if the workspace has indexed content, build the (sub-second to seconds) graph now.
+        import asyncio
+        from ..graph.builder import build_graph
+        with db() as conn:docs=conn.execute('SELECT COUNT(*) FROM indexed_documents WHERE project_id=?',(project_id,)).fetchone()[0]
+        if docs==0:raise GraphNotReady('This workspace has no indexed content yet. Ask your manager to connect a repository or documents.')
+        await asyncio.to_thread(build_graph,project_id)
+        v=load_view(project_id)
+        if v is None:raise GraphNotReady('The knowledge graph could not be built for this workspace.')
+    if not role:
+        with db() as conn:r=conn.execute('SELECT role_title FROM users WHERE id=?',(user_id,)).fetchone()
+        role=(r['role_title'] if r else None) or 'Software Engineer'
+    profile,_=resolve_role(role)
+    with db() as conn:
+        row=conn.execute("SELECT id FROM onboarding_paths WHERE project_id=? AND level=? AND (plan_json::jsonb)->'meta'->>'role_profile_id'=? AND is_public=1 ORDER BY created_at ASC LIMIT 1",(project_id,level,profile['id'])).fetchone()
+    if row:
+        path_id=row['id']
+        with db() as conn:conn.execute('INSERT INTO onboarding_members(path_id,user_id) VALUES(?,?) ON CONFLICT DO NOTHING',(path_id,user_id))
+        return get_path(path_id,user_id)
+    return await create_onboarding(user_id,project_id,profile['title'],level,4,8,'',True,'graph',profile['id'])
 
 def _progress_item_ids(plan:dict)->list[str]:
     ids=[]
@@ -53,11 +264,25 @@ def get_path(path_id:str,user_id:str|None=None)->dict:
         if not r:raise KeyError(path_id)
         d=dict(r);d['plan']=json.loads(d.pop('plan_json'));d['is_public']=bool(d['is_public'])
         d['members']=[dict(x) for x in conn.execute('''SELECT m.*,u.display_name,u.role_title,u.avatar FROM onboarding_members m LEFT JOIN users u ON u.id=m.user_id WHERE m.path_id=? ORDER BY m.xp DESC,m.progress DESC''',(path_id,)).fetchall()]
+        from ..services.leaderboard import leaderboard
+        org=conn.execute('SELECT org_id FROM projects WHERE id=?',(d['project_id'],)).fetchone()['org_id']
+        scores={x['user_id']:x for x in leaderboard(org,d['project_id'],path_id)}
+        for member in d['members']:
+            score=scores.get(member['user_id'])
+            if score:
+                for key in ('xp','progress','streak','display_name'):member[key]=score[key]
+        d['members'].sort(key=lambda x:(-x['xp'],x['user_id']))
         d['resources']=[]
+        from ..services.jobs import get_job
+        job=conn.execute("SELECT id FROM agent_jobs WHERE project_id=? AND kind='resource_scout' AND payload_json::jsonb->>'path_id'=? ORDER BY created_at DESC LIMIT 1",(d['project_id'],path_id)).fetchone()
+        d['resource_job']=get_job(job['id']) if job else None
         for x in conn.execute('SELECT * FROM path_resources WHERE path_id=? ORDER BY module_id,created_at',(path_id,)).fetchall():
             z=dict(x);z['metadata']=json.loads(z.pop('metadata_json') or '{}');d['resources'].append(z)
         d['progress_items']=[]
         if user_id:d['progress_items']=[dict(x) for x in conn.execute('SELECT * FROM path_progress WHERE path_id=? AND user_id=?',(path_id,user_id)).fetchall()]
+    if user_id:
+        from ..graph.quiz import path_quiz_state
+        d.update(path_quiz_state(path_id,user_id,d['plan']))
     return d
 
 def list_paths(project_id:str,user_id:str)->list[dict]:
@@ -81,6 +306,7 @@ def add_resources(path_id:str,resources:list[dict])->int:
         for r in resources:
             url=str(r.get('url') or '').strip();title=str(r.get('title') or '').strip()
             if not url or not title:continue
+            if len(url)>2000 or not re.match(r'^https?://[^\s<>"\']+$',url,re.I):continue      # only web links: no javascript:/file:/data: from an agent
             rid=str(uuid.uuid5(uuid.NAMESPACE_URL,f'{path_id}:{url}'))
             conn.execute('''INSERT INTO path_resources(id,path_id,module_id,title,url,resource_type,source,rationale,estimated_minutes,metadata_json)
                 VALUES(?,?,?,?,?,?,?,?,?,?)
@@ -92,18 +318,25 @@ def add_resources(path_id:str,resources:list[dict])->int:
     return count
 
 def update_progress(path_id:str,user_id:str,item_id:str,status:str,progress:float,score:float|None=None)->dict:
+    from ..graph.quiz import assert_progress_allowed
+    assert_progress_allowed(path_id,user_id,item_id,status)   # raises QuizRequiredError / LockedError
     with db() as conn:
         p=conn.execute('SELECT plan_json FROM onboarding_paths WHERE id=?',(path_id,)).fetchone()
         if not p:raise KeyError(path_id)
+        conn.execute('SELECT id FROM users WHERE id=? FOR UPDATE',(user_id,))
         plan=json.loads(p['plan_json']);valid=set(_progress_item_ids(plan));
         if valid and item_id not in valid:raise KeyError(item_id)
         old=conn.execute('SELECT status FROM path_progress WHERE path_id=? AND user_id=? AND item_id=?',(path_id,user_id,item_id)).fetchone()
+        if old and old['status']=='completed':
+            status,progress='completed',1.0
         conn.execute('''INSERT INTO path_progress(path_id,user_id,item_id,status,progress,score) VALUES(?,?,?,?,?,?) ON CONFLICT(path_id,user_id,item_id) DO UPDATE SET status=excluded.status,progress=excluded.progress,score=COALESCE(excluded.score,path_progress.score),updated_at=CURRENT_TIMESTAMP''',(path_id,user_id,item_id,status,progress,score))
         done=conn.execute("SELECT COUNT(*) FROM path_progress WHERE path_id=? AND user_id=? AND status='completed'",(path_id,user_id)).fetchone()[0]
         total=max(len(valid),1);overall=min(1,done/total)
         xp_gain=0
         if status=='completed' and (not old or old['status']!='completed'):
-            xp_gain=100 + (int(max(0,min(1,score))*50) if score is not None else 0)
+            base=next((int(it.get('xp') or 100) for m in plan.get('modules',[]) for it in m.get('items',[]) if it.get('id')==item_id),None)
+            if base is None:base=next((int(e.get('xp') or 100) for e in plan.get('exercises',[]) if e.get('id')==item_id),100)
+            xp_gain=base
         conn.execute('INSERT OR IGNORE INTO onboarding_members(path_id,user_id) VALUES(?,?)',(path_id,user_id));conn.execute('UPDATE onboarding_members SET progress=?,xp=xp+? WHERE path_id=? AND user_id=?',(overall,xp_gain,path_id,user_id))
         member=conn.execute('SELECT xp,progress,streak FROM onboarding_members WHERE path_id=? AND user_id=?',(path_id,user_id)).fetchone()
     return {'path_id':path_id,'item_id':item_id,'status':status,'progress':progress,'overall':overall,'xp_delta':xp_gain,'xp':member['xp'],'streak':member['streak']}

@@ -22,5 +22,8 @@ def admin_stats(org_id:str)->dict[str,Any]:
     with db() as conn:
         q=lambda sql,args=():conn.execute(sql,args).fetchone()[0]
         projects=q('SELECT COUNT(*) FROM projects WHERE org_id=?',(org_id,));users=q('SELECT COUNT(*) FROM users WHERE org_id=?',(org_id,));docs=q('SELECT COUNT(*) FROM indexed_documents d JOIN projects p ON p.id=d.project_id WHERE p.org_id=?',(org_id,));chunks=q('SELECT COUNT(*) FROM indexed_chunks c JOIN projects p ON p.id=c.project_id WHERE p.org_id=?',(org_id,));paths=q('SELECT COUNT(*) FROM onboarding_paths o JOIN projects p ON p.id=o.project_id WHERE p.org_id=?',(org_id,));events=q('SELECT COUNT(*) FROM learning_events');traces=q('SELECT COUNT(*) FROM agent_traces')
-        top=[dict(r) for r in conn.execute('''SELECT u.display_name,SUM(m.xp) xp,AVG(m.progress) progress FROM onboarding_members m LEFT JOIN users u ON u.id=m.user_id GROUP BY m.user_id ORDER BY xp DESC LIMIT 10''').fetchall()]
+        events=q('SELECT COUNT(*) FROM learning_events e JOIN users u ON u.id=e.user_id WHERE u.org_id=?',(org_id,))
+        traces=q('SELECT COUNT(*) FROM agent_traces t JOIN projects p ON p.id=t.project_id WHERE p.org_id=?',(org_id,))
+    from .leaderboard import leaderboard
+    top=leaderboard(org_id)[:10]
     return {'projects':projects,'users':users,'documents':docs,'chunks':chunks,'onboarding_paths':paths,'events':events,'agent_traces':traces,'leaderboard':top}

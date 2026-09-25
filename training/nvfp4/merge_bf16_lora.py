@@ -22,6 +22,9 @@ def main() -> None:
     args = p.parse_args()
 
     import torch
+    # Container's torchao build trips peft's version gate (raises ImportError); we never use it.
+    import peft.tuners.lora.torchao as _peft_lora_torchao
+    _peft_lora_torchao.is_torchao_available = lambda: False
     from peft import PeftModel
     from transformers import AutoModelForCausalLM, AutoModelForImageTextToText, AutoTokenizer
 

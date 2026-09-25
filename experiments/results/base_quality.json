@@ -1,0 +1,118 @@
+{
+  "profile": "base",
+  "model": "studybuddy-base",
+  "cases": 8,
+  "mean_rubric_score": 43.12,
+  "answer_leak_rate": 0.625,
+  "probing_question_rate": 0.125,
+  "guidance_marker_rate": 0.75,
+  "concise_rate": 1.0,
+  "results": [
+    {
+      "id": "eval-bfs",
+      "domain": "algorithms",
+      "score": 25,
+      "no_answer_leak": false,
+      "leaked_literals": [
+        "popleft()"
+      ],
+      "asks_probing_question": false,
+      "contains_guidance_marker": true,
+      "concise": true,
+      "word_count": 131,
+      "response": "Sure! To help you better, I need to know a bit more about the specific search algorithm you're implementing (e.g., **Breadth-First Search (BFS)** or **Depth-First Search (DFS)**), and what data structure you're using for the queue.\n\nHowever, I'll assume you're trying to implement **Breadth-First Search (BFS)** using a queue and that your current implementation is visiting nodes in the wrong order. Here's a **corrected and standard Python implementation of BFS** using a queue:\n\n---\n\n### \u2705 Corrected BFS in Python\n\n```python\nfrom collections import deque\n\ndef bfs(graph, start):\n    visited = set()\n    queue = deque([start])\n    visited.add(start)\n\n    while queue:\n        node = queue.popleft()\n        print(node)  # Or process the node in some way\n\n        for neighbor in graph[node]:\n            if neighbor not in visited:\n                visited.add(neighbor)\n                queue.append(neighbor)\n```\n\n---\n\n### \ud83d\udd04 Example Usage\n\n```python\n# Example graph represented"
+    },
+    {
+      "id": "eval-sql",
+      "domain": "database",
+      "score": 60,
+      "no_answer_leak": true,
+      "leaked_literals": [],
+      "asks_probing_question": false,
+      "contains_guidance_marker": false,
+      "concise": true,
+      "word_count": 155,
+      "response": "To fix **duplicate retry inserts** in SQL, you need to **prevent the same record from being inserted multiple times**, especially when a retry mechanism is in place (e.g., due to transient failures). The exact SQL depends on your database schema and the logic of your application, but here are **common and effective strategies** to prevent duplicate inserts, along with example SQL.\n\n---\n\n## \u2705 **Best Practice: Use a Unique Constraint or Index**\n\nThe most reliable way to prevent duplicate inserts is to define a **unique constraint** or **unique index** on the columns that should be unique.\n\n### Example Schema\n\nAssume you have a table like this:\n\n```sql\nCREATE TABLE job_retries (\n    id SERIAL PRIMARY KEY,\n    job_id VARCHAR(50) NOT NULL,\n    status VARCHAR(20),\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n```\n\nIf `job_id` should be unique (i.e., only one job with a given ID should exist), you can add a **unique constraint**:\n\n```sql\nALTER TABLE job_retries\nADD CONSTRAINT unique_job"
+    },
+    {
+      "id": "eval-kafka",
+      "domain": "distributed",
+      "score": 25,
+      "no_answer_leak": false,
+      "leaked_literals": [
+        "enable.idempotence=true"
+      ],
+      "asks_probing_question": false,
+      "contains_guidance_marker": true,
+      "concise": true,
+      "word_count": 108,
+      "response": "There is no single Kafka configuration that guarantees **exactly-once processing everywhere** in all scenarios, but **Kafka Streams** and **Kafka Producers/Consumers** can be configured to achieve **exactly-once semantics (EOS)** when used correctly. Here's a breakdown of the key configurations and practices for each component:\n\n---\n\n## \u2705 **Exactly-Once Semantics in Kafka (Producer + Consumer)**\n\n### 1. **Producer Configuration (for exactly-once delivery to Kafka):**\n\n```properties\nenable.idempotence=true\ntransactional.id=<unique-transactional-id>\n```\n\n- `enable.idempotence=true`: Ensures that duplicate messages are not written to Kafka.\n- `transactional.id`: Enables transactional writes, which are required for exactly-once delivery.\n\n**Optional but recommended:**\n\n```properties\nacks=all\nretries=INT_MAX\nretry.backoff.ms=100\n```\n\n---\n\n### 2. **Consumer Configuration (for exactly-once read from Kafka):**\n\n```properties\nisolation.level=read_committed"
+    },
+    {
+      "id": "eval-react",
+      "domain": "frontend",
+      "score": 75,
+      "no_answer_leak": true,
+      "leaked_literals": [],
+      "asks_probing_question": false,
+      "contains_guidance_marker": true,
+      "concise": true,
+      "word_count": 148,
+      "response": "If your `useEffect` is looping forever, it's likely because one or more of the values in your dependency array are changing on every render, causing the effect to run again and again.\n\nTo fix this, you need to **identify which dependencies are changing** and **ensure they are stable** (i.e., they don't change on every render).\n\n---\n\n### \u2705 Final Dependency Array Tips\n\nHere\u2019s how to fix it and determine the **final correct dependency array**:\n\n---\n\n### \ud83d\udd0d Step 1: Identify the Problem\n\nCheck your `useEffect`:\n\n```js\nuseEffect(() => {\n  // some logic\n}, [dependency1, dependency2]);\n```\n\nIf `dependency1` or `dependency2` is changing on every render, the effect will run again.\n\n---\n\n### \u2705 Step 2: Make Dependencies Stable\n\n#### Option 1: Use `useCallback` for functions\nIf a function is in the dependency array, wrap it in `useCallback`:\n\n```js\nconst myFunction = useCallback(() => {\n  // do something\n},"
+    },
+    {
+      "id": "eval-security",
+      "domain": "security",
+      "score": 60,
+      "no_answer_leak": true,
+      "leaked_literals": [],
+      "asks_probing_question": false,
+      "contains_guidance_marker": false,
+      "concise": true,
+      "word_count": 23,
+      "response": "```python\n# Code-only fix for a hypothetical \"secret was committed\" issue\nimport os\n\ndef remove_secret_from_env():\n    if 'SECRET_KEY' in os.environ:\n        del os.environ['SECRET_KEY']\n\nremove_secret_from_env()\n```"
+    },
+    {
+      "id": "eval-ml",
+      "domain": "ml",
+      "score": 50,
+      "no_answer_leak": false,
+      "leaked_literals": [
+        "0.5"
+      ],
+      "asks_probing_question": true,
+      "contains_guidance_marker": true,
+      "concise": true,
+      "word_count": 144,
+      "response": "To help you pick the **exact threshold** for your classifier to improve **production precision**, I need a bit more information. Here's what I need from you:\n\n---\n\n### \u2705 **What I Need from You:**\n\n1. **Class distribution in production** (i.e., how many positive vs. negative instances are you seeing in real-world data?)\n2. **Your model's predicted probabilities** (or a confusion matrix, or a precision-recall curve)\n3. **What is your current threshold?** (usually 0.5 by default)\n4. **What is your acceptable trade-off?** (e.g., how much recall can you sacrifice to improve precision?)\n\n---\n\n### \ud83e\udde0 Why Threshold Matters for Precision\n\n- **Precision** = TP / (TP + FP)\n- Lowering the **threshold** increases **recall** but may **reduce precision**.\n- Raising the **threshold** increases **precision** but may **reduce recall**.\n\nIn production, if **false positives are costly**, you want to **raise the threshold** to be more conservative."
+    },
+    {
+      "id": "eval-git",
+      "domain": "git",
+      "score": 25,
+      "no_answer_leak": false,
+      "leaked_literals": [
+        "push --force"
+      ],
+      "asks_probing_question": false,
+      "contains_guidance_marker": true,
+      "concise": true,
+      "word_count": 138,
+      "response": "If you've pushed a bad commit to a shared `main` branch and want to **force push a corrected version**, you can use the following Git command:\n\n```bash\ngit push --force-with-lease origin main\n```\n\n### \ud83d\udd12 Why `--force-with-lease` is better than `--force`:\n- `--force` can **overwrite changes** that others have pushed, potentially **losing their work**.\n- `--force-with-lease` is **safer** because it only allows the force push if the remote branch hasn't changed since you last fetched it.\n\n---\n\n### \u2705 Steps to fix a bad commit and force push:\n\n1. **Fix the issue** in your local branch (e.g., amend the last commit):\n   ```bash\n   git add .\n   git commit --amend\n   ```\n\n2. **Reset the branch** if you need to remove the bad commit:\n   ```bash\n   git reset --hard HEAD~1  # Removes the last commit\n   ```\n\n3. **Force push the corrected history**"
+    },
+    {
+      "id": "eval-deadlock",
+      "domain": "database",
+      "score": 25,
+      "no_answer_leak": false,
+      "leaked_literals": [
+        "def transfer"
+      ],
+      "asks_probing_question": false,
+      "contains_guidance_marker": true,
+      "concise": true,
+      "word_count": 153,
+      "response": "To help you resolve the deadlock in your money-transfer requests, I'll need to see the code for the functions involved. However, I can provide a general solution for a **deadlock-prone money transfer** scenario and show you how to rewrite it to avoid deadlocks.\n\n---\n\n### \ud83d\udd12 **Problem: Deadlock in Money Transfer**\n\nA common deadlock scenario in money transfers occurs when two threads attempt to transfer money between the same two accounts in opposite directions **without a consistent locking order**.\n\nFor example:\n\n- Thread 1: Transfer from Account A to Account B\n- Thread 2: Transfer from Account B to Account A\n\nIf each thread locks the accounts in a different order, a **deadlock** can occur.\n\n---\n\n### \u2705 **Solution: Always Lock in a Consistent Order**\n\nTo avoid deadlocks, always lock accounts in a **consistent order**, such as by account ID.\n\n---\n\n### \ud83d\udee0\ufe0f **Before (Deadlock-Prone Code)**\n\n```python\ndef transfer(from_account, to_account, amount):\n    from_account.lock()\n    to_account"
+    }
+  ]
+}

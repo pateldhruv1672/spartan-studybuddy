@@ -1,0 +1,349 @@
+{
+  "profile": "nvfp4-ngram-spec",
+  "endpoint": "http://127.0.0.1:8302/v1",
+  "model": "studybuddy-nvfp4-spec",
+  "requests": 16,
+  "concurrency": 1,
+  "max_tokens": 180,
+  "wall_time_s": 151.355,
+  "total_output_tokens": 2156,
+  "aggregate_output_tok_s": 14.245,
+  "ttft_p50_s": 0.1052,
+  "ttft_p95_s": 0.163,
+  "e2e_p50_s": 10.0631,
+  "e2e_p95_s": 14.492,
+  "decode_tok_s_p50": 13.246,
+  "decode_tok_s_p95": 22.807,
+  "spec_metrics_samples": [
+    {
+      "mean_acceptance_length": 1.0,
+      "draft_acceptance_rate": 0.0,
+      "acceptance_histogram": [
+        7,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 7,
+      "num_accepted_draft_tokens": 0,
+      "num_draft_tokens": 35,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.1363636363636362,
+      "draft_acceptance_rate": 0.028037383177570093,
+      "acceptance_histogram": [
+        19,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 22,
+      "num_accepted_draft_tokens": 3,
+      "num_draft_tokens": 107,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.12987012987013,
+      "draft_acceptance_rate": 0.025974025974025976,
+      "acceptance_histogram": [
+        68,
+        8,
+        1,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 77,
+      "num_accepted_draft_tokens": 10,
+      "num_draft_tokens": 385,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.2682926829268293,
+      "draft_acceptance_rate": 0.05365853658536585,
+      "acceptance_histogram": [
+        35,
+        3,
+        2,
+        0,
+        1,
+        0
+      ],
+      "num_spec_steps": 41,
+      "num_accepted_draft_tokens": 11,
+      "num_draft_tokens": 205,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.0,
+      "draft_acceptance_rate": 0.0,
+      "acceptance_histogram": [
+        16,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 16,
+      "num_accepted_draft_tokens": 0,
+      "num_draft_tokens": 80,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.1222222222222222,
+      "draft_acceptance_rate": 0.02466367713004484,
+      "acceptance_histogram": [
+        80,
+        9,
+        1,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 90,
+      "num_accepted_draft_tokens": 11,
+      "num_draft_tokens": 446,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.3536585365853657,
+      "draft_acceptance_rate": 0.07073170731707316,
+      "acceptance_histogram": [
+        67,
+        8,
+        3,
+        2,
+        1,
+        1
+      ],
+      "num_spec_steps": 82,
+      "num_accepted_draft_tokens": 29,
+      "num_draft_tokens": 410,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.206896551724138,
+      "draft_acceptance_rate": 0.041474654377880185,
+      "acceptance_histogram": [
+        79,
+        3,
+        3,
+        0,
+        1,
+        1
+      ],
+      "num_spec_steps": 87,
+      "num_accepted_draft_tokens": 18,
+      "num_draft_tokens": 434,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.1785714285714286,
+      "draft_acceptance_rate": 0.03571428571428571,
+      "acceptance_histogram": [
+        26,
+        1,
+        0,
+        0,
+        1,
+        0
+      ],
+      "num_spec_steps": 28,
+      "num_accepted_draft_tokens": 5,
+      "num_draft_tokens": 140,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 2.666666666666667,
+      "draft_acceptance_rate": 0.3512396694214876,
+      "acceptance_histogram": [
+        28,
+        6,
+        2,
+        0,
+        0,
+        15
+      ],
+      "num_spec_steps": 51,
+      "num_accepted_draft_tokens": 85,
+      "num_draft_tokens": 242,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 2.2264150943396226,
+      "draft_acceptance_rate": 0.2480916030534351,
+      "acceptance_histogram": [
+        34,
+        6,
+        1,
+        1,
+        1,
+        10
+      ],
+      "num_spec_steps": 53,
+      "num_accepted_draft_tokens": 65,
+      "num_draft_tokens": 262,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.202247191011236,
+      "draft_acceptance_rate": 0.04044943820224719,
+      "acceptance_histogram": [
+        75,
+        11,
+        2,
+        1,
+        0,
+        0
+      ],
+      "num_spec_steps": 89,
+      "num_accepted_draft_tokens": 18,
+      "num_draft_tokens": 445,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.0,
+      "draft_acceptance_rate": 0.0,
+      "acceptance_histogram": [
+        12,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 12,
+      "num_accepted_draft_tokens": 0,
+      "num_draft_tokens": 60,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.1728395061728394,
+      "draft_acceptance_rate": 0.034739454094292806,
+      "acceptance_histogram": [
+        72,
+        7,
+        1,
+        0,
+        0,
+        1
+      ],
+      "num_spec_steps": 81,
+      "num_accepted_draft_tokens": 14,
+      "num_draft_tokens": 403,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.901639344262295,
+      "draft_acceptance_rate": 0.18032786885245902,
+      "acceptance_histogram": [
+        44,
+        6,
+        2,
+        0,
+        0,
+        9
+      ],
+      "num_spec_steps": 61,
+      "num_accepted_draft_tokens": 55,
+      "num_draft_tokens": 305,
+      "num_spec_tokens": 5
+    },
+    {
+      "mean_acceptance_length": 1.0786516853932584,
+      "draft_acceptance_rate": 0.01580135440180587,
+      "acceptance_histogram": [
+        83,
+        5,
+        1,
+        0,
+        0,
+        0
+      ],
+      "num_spec_steps": 89,
+      "num_accepted_draft_tokens": 7,
+      "num_draft_tokens": 443,
+      "num_spec_tokens": 5
+    }
+  ],
+  "samples": [
+    {
+      "ttft_s": 0.1630012590030674,
+      "e2e_s": 3.0609537570016982,
+      "output_tokens": 36,
+      "decode_tok_s": 12.422563870478255,
+      "request_tok_s": 11.761040139091532,
+      "speculative_decoding": {
+        "mean_acceptance_length": 1.0,
+        "draft_acceptance_rate": 0.0,
+        "acceptance_histogram": [
+          7,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "num_spec_steps": 7,
+        "num_accepted_draft_tokens": 0,
+        "num_draft_tokens": 35,
+        "num_spec_tokens": 5
+      },
+      "text": "When you add new neighbors to your frontier, are you placing them at the beginning or the end of your collection? Think about how this choice affects which node gets processed next."
+    },
+    {
+      "ttft_s": 0.10558880100143142,
+      "e2e_s": 4.48022701300215,
+      "output_tokens": 56,
+      "decode_tok_s": 12.801058575856194,
+      "request_tok_s": 12.499366625280675,
+      "speculative_decoding": {
+        "mean_acceptance_length": 1.1363636363636362,
+        "draft_acceptance_rate": 0.028037383177570093,
+        "acceptance_histogram": [
+          19,
+          3,
+          0,
+          0,
+          0,
+          0
+        ],
+        "num_spec_steps": 22,
+        "num_accepted_draft_tokens": 3,
+        "num_draft_tokens": 107,
+        "num_spec_tokens": 5
+      },
+      "text": "Let's break this down step by step. First, let's identify the parameters of the recurrence relation. Given the form T(n) = aT(n/b) + f(n), what are the values of a, b, and f(n) in your specific problem?"
+    },
+    {
+      "ttft_s": 0.10355698599960306,
+      "e2e_s": 14.092041419000452,
+      "output_tokens": 180,
+      "decode_tok_s": 12.867727083811458,
+      "request_tok_s": 12.77316711241737,
+      "speculative_decoding": {
+        "mean_acceptance_length": 1.12987012987013,
+        "draft_acceptance_rate": 0.025974025974025976,
+        "acceptance_histogram": [
+          68,
+          8,
+          1,
+          0,
+          0,
+          0
+        ],
+        "num_spec_steps": 77,
+        "num_accepted_draft_tokens": 10,
+        "num_draft_tokens": 385,
+        "num_spec_tokens": 5
+      },
+      "text": "When you see the training loss decreasing while the validation loss increases, it indicates that your model is memorizing the training data rather than learning generalizable patterns. This is a classic sign of overfitting. Now, to help us pinpoint the cause, I need to know: how many parameters does your model have compared to the size of your training dataset? Is your model significantly larger than the number of samples you're training on? This will help us determine if the issue is due to model complexity or insufficient data. Remember, the goal is to find a balance where your model can generalize well to unseen data. If your model is too complex for your data, consider simplifying it or adding more data. If your data is too small, consider collecting more or using techniques like data augmentation. What do you think about your model's complexity relative to your dataset size? Can you provide more details about your"
+    }
+  ]
+}

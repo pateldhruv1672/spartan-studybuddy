@@ -1,0 +1,47 @@
+{
+  "profile": "nvfp4-quantized",
+  "endpoint": "http://127.0.0.1:8300/v1",
+  "model": "studybuddy-nvfp4",
+  "requests": 16,
+  "concurrency": 1,
+  "max_tokens": 180,
+  "wall_time_s": 166.3107,
+  "total_output_tokens": 2087,
+  "aggregate_output_tok_s": 12.549,
+  "ttft_p50_s": 0.1668,
+  "ttft_p95_s": 0.185,
+  "e2e_p50_s": 12.2599,
+  "e2e_p95_s": 14.3743,
+  "decode_tok_s_p50": 12.719,
+  "decode_tok_s_p95": 12.915,
+  "spec_metrics_samples": [],
+  "samples": [
+    {
+      "ttft_s": 0.16094525500011514,
+      "e2e_s": 6.00984908099781,
+      "output_tokens": 75,
+      "decode_tok_s": 12.822915580631323,
+      "request_tok_s": 12.479514708137698,
+      "speculative_decoding": null,
+      "text": "When you add a new node to your frontier, does it go to the beginning or the end of your data structure? If it's going to the beginning, you're mimicking a stack, which leads to depth-first behavior. If it's going to the end, you're mimicking a queue, which leads to breadth-first behavior. Which one are you using?"
+    },
+    {
+      "ttft_s": 0.17908042800263502,
+      "e2e_s": 4.360294086000067,
+      "output_tokens": 54,
+      "decode_tok_s": 12.914910458286167,
+      "request_tok_s": 12.384485755991085,
+      "speculative_decoding": null,
+      "text": "Let's break this down step by step. First, we need to identify the parameters of the recurrence relation. Can you tell me what the values of a, b, and f(n) are in the equation T(n)=4T(n/2)+n?"
+    },
+    {
+      "ttft_s": 0.175625828000193,
+      "e2e_s": 14.32667580099951,
+      "output_tokens": 180,
+      "decode_tok_s": 12.719904200991877,
+      "request_tok_s": 12.563975237538507,
+      "speculative_decoding": null,
+      "text": "When you see the training loss decreasing while the validation loss increases, it indicates that your model is memorizing the training data rather than learning generalizable patterns. This is a classic sign of overfitting. Now, to help us pinpoint the cause, consider this: How many parameters does your model have compared to the size of your training dataset? Is your model significantly more complex than the amount of data you're feeding it? This imbalance often leads to the model capturing noise in the training data, which doesn't translate to unseen data. Think about whether you might need to simplify your model or add more data to improve generalization. Remember, the goal is not just to fit the training data well, but to perform well on new, unseen data. Can you think of ways to balance the complexity of your model with the amount of data you have? This will help you better understand and address the issue"
+    }
+  ]
+}

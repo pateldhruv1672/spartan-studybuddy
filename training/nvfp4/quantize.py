@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import sys
 from pathlib import Path
 
@@ -80,11 +81,33 @@ def main():
             m(**batch)
 
     print("Quantizing to NVFP4 (weights + activations, default recipe)...")
-    mtq.quantize(model, mtq.NVFP4_DEFAULT_CFG, forward_loop)
+    # NVFP4_DEFAULT_CFG's *weight_quantizer/*input_quantizer patterns are unqualified wildcards, so
+    # they also sweep in the vision tower and the GatedDeltaNet causal-conv1d layers. Both are not
+    # plain nn.Linear weight matrices (conv1d weight is [out_ch, 1, kernel], vision patch_embed is a
+    # patchify conv), and modelopt's real-quant compress/export path corrupts their on-disk shape
+    # when it packs them the same way it packs a 2D linear weight (verified: re-loading a checkpoint
+    # quantized without this exclusion raises a size-mismatch LOAD REPORT on every conv1d.weight and
+    # on visual.patch_embed.proj.weight). NVIDIA's own NVFP4 build of this exact model (see
+    # nvidia/Qwen3.8-27B-NVFP4's hf_quant_config.json) likewise never lists conv1d or vision layers
+    # among the quantized ones, i.e. it excludes them too. Mirror that here, in the same style as the
+    # config's own `*lm_head*` etc. exclude entries.
+    quant_cfg = copy.deepcopy(mtq.NVFP4_DEFAULT_CFG)
+    for pattern in ("*conv1d*", "*visual*", "*vision*"):
+        quant_cfg["quant_cfg"][pattern] = {"enable": False}
+    mtq.quantize(model, quant_cfg, forward_loop)
     mtq.print_quant_summary(model)
 
-    print("Compressing weights for real QLoRA memory savings...")
-    mtq.compress(model)
+    # Deliberately NOT calling mtq.compress() here. That physically packs weights into real
+    # low-bit storage (e.g. a Linear's [out,in] weight becomes a packed [out,in/2] byte tensor),
+    # which is right for continued QLoRA training on a memory-constrained real-quant model, but
+    # wrong for this PTQ-then-export-to-vLLM flow: modelopt's own export_nvfp4.py step
+    # (export_hf_checkpoint -> requantize_resmooth_fused_llm_layers) runs a real forward pass
+    # through the model to resmooth/fuse quantizer scales across fused layers (e.g. qkv), and does
+    # the physical packing itself afterward. Pre-compressing here left weights in a packed shape
+    # with disabled quantizers and no real-quant GEMM kernel available (needs tensorrt_llm, not
+    # installed), so that forward pass crashed with a shape mismatch (verified: 3 export attempts,
+    # traceback pinpointed model(fake_input) inside requantize_resmooth_fused_llm_layers). Save the
+    # fake-quantized (calibrated, still full-shape) model instead and let export do the real packing.
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)

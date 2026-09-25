@@ -1,0 +1,273 @@
+{
+  "profile": "nvfp4-mtp-spec",
+  "endpoint": "http://127.0.0.1:8303/v1",
+  "model": "studybuddy-nvfp4-mtp",
+  "requests": 16,
+  "concurrency": 1,
+  "max_tokens": 180,
+  "wall_time_s": 105.9895,
+  "total_output_tokens": 1931,
+  "aggregate_output_tok_s": 18.219,
+  "ttft_p50_s": 0.2301,
+  "ttft_p95_s": 0.2346,
+  "e2e_p50_s": 6.0924,
+  "e2e_p95_s": 10.0262,
+  "decode_tok_s_p50": 18.606,
+  "decode_tok_s_p95": 20.268,
+  "spec_metrics_samples": [
+    {
+      "mean_acceptance_length": 1.7142857142857144,
+      "draft_acceptance_rate": 0.7142857142857143,
+      "acceptance_histogram": [
+        6,
+        15
+      ],
+      "num_spec_steps": 21,
+      "num_accepted_draft_tokens": 15,
+      "num_draft_tokens": 21,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.7619047619047619,
+      "draft_acceptance_rate": 0.7619047619047619,
+      "acceptance_histogram": [
+        10,
+        32
+      ],
+      "num_spec_steps": 42,
+      "num_accepted_draft_tokens": 32,
+      "num_draft_tokens": 42,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.7475728155339807,
+      "draft_acceptance_rate": 0.7475728155339806,
+      "acceptance_histogram": [
+        26,
+        77
+      ],
+      "num_spec_steps": 103,
+      "num_accepted_draft_tokens": 77,
+      "num_draft_tokens": 103,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.737864077669903,
+      "draft_acceptance_rate": 0.7378640776699029,
+      "acceptance_histogram": [
+        27,
+        76
+      ],
+      "num_spec_steps": 103,
+      "num_accepted_draft_tokens": 76,
+      "num_draft_tokens": 103,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.6956521739130435,
+      "draft_acceptance_rate": 0.6956521739130435,
+      "acceptance_histogram": [
+        14,
+        32
+      ],
+      "num_spec_steps": 46,
+      "num_accepted_draft_tokens": 32,
+      "num_draft_tokens": 46,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.8947368421052633,
+      "draft_acceptance_rate": 0.8947368421052632,
+      "acceptance_histogram": [
+        10,
+        85
+      ],
+      "num_spec_steps": 95,
+      "num_accepted_draft_tokens": 85,
+      "num_draft_tokens": 95,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.6285714285714286,
+      "draft_acceptance_rate": 0.6285714285714286,
+      "acceptance_histogram": [
+        13,
+        22
+      ],
+      "num_spec_steps": 35,
+      "num_accepted_draft_tokens": 22,
+      "num_draft_tokens": 35,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.875,
+      "draft_acceptance_rate": 0.875,
+      "acceptance_histogram": [
+        12,
+        84
+      ],
+      "num_spec_steps": 96,
+      "num_accepted_draft_tokens": 84,
+      "num_draft_tokens": 96,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.6666666666666665,
+      "draft_acceptance_rate": 0.6666666666666666,
+      "acceptance_histogram": [
+        15,
+        30
+      ],
+      "num_spec_steps": 45,
+      "num_accepted_draft_tokens": 30,
+      "num_draft_tokens": 45,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.9333333333333333,
+      "draft_acceptance_rate": 0.9333333333333333,
+      "acceptance_histogram": [
+        2,
+        28
+      ],
+      "num_spec_steps": 30,
+      "num_accepted_draft_tokens": 28,
+      "num_draft_tokens": 30,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.8043478260869565,
+      "draft_acceptance_rate": 0.8043478260869565,
+      "acceptance_histogram": [
+        9,
+        37
+      ],
+      "num_spec_steps": 46,
+      "num_accepted_draft_tokens": 37,
+      "num_draft_tokens": 46,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.7142857142857144,
+      "draft_acceptance_rate": 0.7142857142857143,
+      "acceptance_histogram": [
+        22,
+        55
+      ],
+      "num_spec_steps": 77,
+      "num_accepted_draft_tokens": 55,
+      "num_draft_tokens": 77,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.7857142857142856,
+      "draft_acceptance_rate": 0.7857142857142857,
+      "acceptance_histogram": [
+        9,
+        33
+      ],
+      "num_spec_steps": 42,
+      "num_accepted_draft_tokens": 33,
+      "num_draft_tokens": 42,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.808080808080808,
+      "draft_acceptance_rate": 0.8080808080808081,
+      "acceptance_histogram": [
+        19,
+        80
+      ],
+      "num_spec_steps": 99,
+      "num_accepted_draft_tokens": 80,
+      "num_draft_tokens": 99,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.79,
+      "draft_acceptance_rate": 0.79,
+      "acceptance_histogram": [
+        21,
+        79
+      ],
+      "num_spec_steps": 100,
+      "num_accepted_draft_tokens": 79,
+      "num_draft_tokens": 100,
+      "num_spec_tokens": 1
+    },
+    {
+      "mean_acceptance_length": 1.8453608247422681,
+      "draft_acceptance_rate": 0.845360824742268,
+      "acceptance_histogram": [
+        15,
+        82
+      ],
+      "num_spec_steps": 97,
+      "num_accepted_draft_tokens": 82,
+      "num_draft_tokens": 97,
+      "num_spec_tokens": 1
+    }
+  ],
+  "samples": [
+    {
+      "ttft_s": 0.16462382100144168,
+      "e2e_s": 2.1756562190021214,
+      "output_tokens": 36,
+      "decode_tok_s": 17.90125312540481,
+      "request_tok_s": 16.54673182535779,
+      "speculative_decoding": {
+        "mean_acceptance_length": 1.7142857142857144,
+        "draft_acceptance_rate": 0.7142857142857143,
+        "acceptance_histogram": [
+          6,
+          15
+        ],
+        "num_spec_steps": 21,
+        "num_accepted_draft_tokens": 15,
+        "num_draft_tokens": 21,
+        "num_spec_tokens": 1
+      },
+      "text": "When you add new neighbors to your frontier, are you placing them at the beginning or the end of your collection? Think about how this choice affects which node gets processed next."
+    },
+    {
+      "ttft_s": 0.2329443849994277,
+      "e2e_s": 4.269216800999857,
+      "output_tokens": 74,
+      "decode_tok_s": 18.333747669421957,
+      "request_tok_s": 17.333390045375324,
+      "speculative_decoding": {
+        "mean_acceptance_length": 1.7619047619047619,
+        "draft_acceptance_rate": 0.7619047619047619,
+        "acceptance_histogram": [
+          10,
+          32
+        ],
+        "num_spec_steps": 42,
+        "num_accepted_draft_tokens": 32,
+        "num_draft_tokens": 42,
+        "num_spec_tokens": 1
+      },
+      "text": "When we look at the recurrence relation T(n)=4T(n/2)+n, we can identify three key components: the number of subproblems, the size of each subproblem, and the cost of combining them. Can you identify what the value of 'a' is in this context? What does this number represent in terms of the problem being divided?"
+    },
+    {
+      "ttft_s": 0.20623734399850946,
+      "e2e_s": 10.026246622001054,
+      "output_tokens": 180,
+      "decode_tok_s": 18.329921581969543,
+      "request_tok_s": 17.95287975512369,
+      "speculative_decoding": {
+        "mean_acceptance_length": 1.7475728155339807,
+        "draft_acceptance_rate": 0.7475728155339806,
+        "acceptance_histogram": [
+          26,
+          77
+        ],
+        "num_spec_steps": 103,
+        "num_accepted_draft_tokens": 77,
+        "num_draft_tokens": 103,
+        "num_spec_tokens": 1
+      },
+      "text": "When you see your training loss decreasing while your validation loss increases, it indicates that your model is memorizing the training data rather than learning generalizable patterns. This is a classic sign of overfitting. Can you tell me how many epochs you've trained for and what your learning rate is? This will help us determine if the model has simply been trained for too long or if it's learning too quickly. Remember, the goal is to find the point where your model starts to generalize well to new data, not just to minimize the training loss. If you continue training, you might see the validation loss continue to rise, which would confirm overfitting. It's important to monitor both losses and stop training when the validation loss starts to increase. This is a common issue in machine learning, and it's important to address it to ensure your model performs well on new, unseen data. Keep in"
+    }
+  ]
+}

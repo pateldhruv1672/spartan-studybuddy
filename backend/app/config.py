@@ -22,10 +22,17 @@ class Settings:
     uploads_dir: Path = DATA_DIR / 'uploads'
     demo_user_id: str = os.getenv('STUDYBUDDY_DEMO_USER', 'demo-spartan')
     demo_org_id: str = os.getenv('STUDYBUDDY_DEMO_ORG', 'demo-company')
-    cors_origins: str = os.getenv('STUDYBUDDY_CORS', '*')
+    cors_origins: str = os.getenv('STUDYBUDDY_CORS', 'http://127.0.0.1:8000,http://localhost:8000')
     api_token: str = os.getenv('STUDYBUDDY_API_TOKEN', 'spartan-local')
-    bridge_token: str = os.getenv('STUDYBUDDY_BRIDGE_TOKEN', 'spartan-local-bridge')
+    bridge_token: str = os.getenv('STUDYBUDDY_BRIDGE_TOKEN', '')
+    auth_secret: str = os.getenv('STUDYBUDDY_AUTH_SECRET', '')
+    auth_token_ttl_hours: int = int(os.getenv('STUDYBUDDY_AUTH_TTL_HOURS', '12'))
+    # 0 (default): a public sign-up as MANAGER creates a brand-new organisation for that person (they cannot join or take over an existing one).
+    # 1: legacy/demo behaviour - a manager sign-up may target an existing organisation (only for closed demos).
+    open_manager_signup: bool = os.getenv('STUDYBUDDY_OPEN_MANAGER_SIGNUP', '0') == '1'
+    require_auth: bool = os.getenv('STUDYBUDDY_REQUIRE_AUTH', '1') == '1'   # secure by default; set 0 only for an isolated demo
     max_upload_mb: int = int(os.getenv('MAX_UPLOAD_MB', '250'))
+    max_remote_mb: int = int(os.getenv('MAX_REMOTE_MB', '25'))
     request_timeout_s: float = float(os.getenv('MODEL_TIMEOUT_S', '180'))
 
     # One stable OpenAI-compatible model name is used by the product. The serving script maps it
@@ -40,6 +47,9 @@ class Settings:
     embedding_model: str = os.getenv('EMBEDDING_MODEL', 'Qwen/Qwen3-Embedding-0.6B')
     embedding_dim: int = int(os.getenv('EMBEDDING_DIM', '1024'))
     embedding_batch: int = int(os.getenv('EMBEDDING_BATCH', '24'))
+    # The embedding vLLM container's own configured context window (same env var it's started with);
+    # chunking must stay under this or the embedding server rejects the whole batch.
+    embedding_max_model_len: int = int(os.getenv('EMBEDDING_MAX_MODEL_LEN', '8192'))
     allow_embedding_fallback: bool = os.getenv('ALLOW_EMBEDDING_FALLBACK', '0') == '1'
     retrieval_top_k: int = int(os.getenv('RETRIEVAL_TOP_K', '12'))
 
@@ -52,6 +62,7 @@ class Settings:
     github_token: str = os.getenv('GITHUB_TOKEN', '')
     google_access_token: str = os.getenv('GOOGLE_DRIVE_ACCESS_TOKEN', '')
     telemetry_enabled: bool = os.getenv('TELEMETRY_ENABLED','1') == '1'
+    trace_content: bool = os.getenv('STUDYBUDDY_TRACE_CONTENT','0') == '1'
     langsmith_api_key: str = os.getenv('LANGSMITH_API_KEY','')
     langsmith_project: str = os.getenv('LANGSMITH_PROJECT','spartan-studybuddy')
 

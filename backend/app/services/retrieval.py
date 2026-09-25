@@ -5,10 +5,19 @@ from ..db import db
 from .indexer import hybrid_search
 from .model_router import router
 from .telemetry import RAG_SEARCH
+from .reranking import rank
+from ..graph.rag import community_items, expand as graph_expand
 
 async def retrieve(project_id:str,query:str,top_k:int=10,rerank:bool=True,include_graph:bool=True)->list[dict[str,Any]]:
     started=time.perf_counter(); candidates=hybrid_search(project_id,query,max(top_k*2,16))
+    graph_used=False
     if include_graph:
+        # GraphRAG: pull in structurally connected evidence (imports/calls/tests/docs) that search alone missed.
+        try:
+            candidates,ginfo=graph_expand(project_id,query,candidates); graph_used=bool(ginfo.get('graph'))
+            if graph_used: candidates=candidates+community_items(project_id,query)
+        except Exception: graph_used=False
+    if include_graph and not graph_used:
         terms=[x for x in query.replace('(',' ').replace(')',' ').replace('.',' ').split() if len(x)>2][:12]
         with db() as conn:
             for term in terms:
@@ -22,19 +31,7 @@ async def retrieve(project_id:str,query:str,top_k:int=10,rerank:bool=True,includ
                         d.update({'id':cid,'symbol':d.get('qualified_name') or d.get('name'),'kind':'code','rrf':.01,'citation':f"{d['source_name']}:{d.get('start_line') or '?'}-{d.get('end_line') or '?'}"})
                         candidates.append(d)
     candidates=candidates[:max(top_k*2,18)]
-    if rerank and len(candidates)>top_k:
-        compact=[{'i':i,'source':x.get('source_name'),'symbol':x.get('symbol'),'kind':x.get('kind'),'text':(x.get('content') or '')[:700]} for i,x in enumerate(candidates)]
-        fallback={'order':list(range(min(top_k,len(candidates))))}
-        ranked=await router.json(system='You are a retrieval reranker. Rank evidence by usefulness for answering the query. Prefer exact code symbols, tests, architecture docs and direct definitions. Return {"order":[integer indexes]}.',user=f'Query: {query}\nCandidates: {json.dumps(compact)}',tier='instruct',fallback=fallback,agent='rag_reranker',project_id=project_id,metadata={'candidate_count':len(candidates)})
-        order=[i for i in ranked.get('order',[]) if isinstance(i,int) and 0<=i<len(candidates)]
-        seen=set(); selected=[]
-        for i in order:
-            if i not in seen:selected.append(candidates[i]);seen.add(i)
-        for i,x in enumerate(candidates):
-            if len(selected)>=top_k:break
-            if i not in seen:selected.append(x);seen.add(i)
-        candidates=selected[:top_k]
-    else:candidates=candidates[:top_k]
+    candidates=await rank(project_id,query,candidates,top_k,rerank)
     for i,x in enumerate(candidates,1):
         if not x.get('citation'):
             x['citation']=f"{x.get('source_name','source')}:{x.get('start_line') or '?'}-{x.get('end_line') or '?'}"
@@ -47,7 +44,7 @@ def format_context(items:list[dict[str,Any]],max_chars:int=18000)->str:
     for x in items:
         text=(x.get('content') or '').strip()
         header=f"{x.get('ref','')} {x.get('citation','')} | {x.get('kind','text')}"
-        block=f'{header}\n{text}'
+        block=f'<evidence source="{header}">\n{text}\n</evidence>'
         if total+len(block)>max_chars:break
         blocks.append(block);total+=len(block)
     return '\n\n---\n\n'.join(blocks)

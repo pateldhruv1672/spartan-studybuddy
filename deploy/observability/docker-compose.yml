@@ -1,18 +1,19 @@
 services:
   prometheus:
     image: prom/prometheus:latest
-    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    network_mode: host
+    # host networking so Prometheus can reach the vLLM/embeddings ports, which are deliberately
+    # bound to 127.0.0.1 only (never exposed over the LAN) -- --web.listen-address keeps
+    # Prometheus's own UI loopback-only too, since host networking would otherwise default it
+    # to all interfaces.
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--web.listen-address=127.0.0.1:9090"]
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
-    ports:
-      - "127.0.0.1:9090:9090"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.10.8
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
@@ -24,17 +25,21 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    network_mode: host
+    # host networking so Grafana can reach Prometheus, which is loopback-only (see above);
+    # GF_SERVER_HTTP_PORT keeps Grafana itself on the same external port (3001) it used to
+    # get from the "0.0.0.0:3001:3000" publish mapping, which host networking bypasses.
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-studybuddy}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/studybuddy.json
+      GF_SERVER_HTTP_ADDR: "0.0.0.0"
+      GF_SERVER_HTTP_PORT: "3001"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-    ports:
-      - "0.0.0.0:3001:3000"
     depends_on: [prometheus, tempo]
     restart: unless-stopped
 

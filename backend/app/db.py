@@ -9,6 +9,7 @@ from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 
 from .config import settings
+from .graph import schema as graph_schema
 
 
 class DBRow(dict):
@@ -102,6 +103,11 @@ class ConnectionProxy:
         translated = _translate_sql(sql)
         cursor = self._conn.execute(translated) if params is None else self._conn.execute(translated, params)
         return ResultProxy(cursor)
+
+    def executemany(self, sql: str, seq: Any) -> None:
+        """Bulk statement with the same qmark translation as execute() (used by graph rebuilds)."""
+        with self._conn.cursor() as cur:
+            cur.executemany(_translate_sql(sql), seq)
 
     def commit(self) -> None:
         self._conn.commit()
@@ -317,7 +323,11 @@ def _schema_statements() -> list[str]:
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         )''',
         'CREATE INDEX IF NOT EXISTS idx_traces_created ON agent_traces(created_at DESC)',
-    ]
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT',
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS app_role TEXT NOT NULL DEFAULT 'learner'",
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_login_email ON users(lower(email)) WHERE password_hash IS NOT NULL',
+        'ALTER TABLE invites ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ',
+    ] + graph_schema.statements()
 
 
 def init_db() -> None:

@@ -1,0 +1,47 @@
+{
+  "profile": "zrt-mtp-spec2",
+  "endpoint": "http://127.0.0.1:8080/v1",
+  "model": "studybuddy-mtp",
+  "requests": 16,
+  "concurrency": 1,
+  "max_tokens": 180,
+  "wall_time_s": 112.0037,
+  "total_output_tokens": 2176,
+  "aggregate_output_tok_s": 19.428,
+  "ttft_p50_s": 0.2544,
+  "ttft_p95_s": 0.3019,
+  "e2e_p50_s": 7.6498,
+  "e2e_p95_s": 10.4295,
+  "decode_tok_s_p50": 20.738,
+  "decode_tok_s_p95": 22.725,
+  "spec_metrics_samples": [],
+  "samples": [
+    {
+      "ttft_s": 0.1602755799976876,
+      "e2e_s": 3.044865730989841,
+      "output_tokens": 62,
+      "decode_tok_s": 21.493521351265493,
+      "request_tok_s": 20.362145814503524,
+      "speculative_decoding": null,
+      "text": "When you add new nodes to your frontier, are you placing them at the beginning or the end of your collection? And when you remove a node to process it, are you taking it from the beginning or the end? Think about how these two actions interact to determine the order in which nodes are explored."
+    },
+    {
+      "ttft_s": 0.2548482160054846,
+      "e2e_s": 8.345242345996667,
+      "output_tokens": 180,
+      "decode_tok_s": 22.248607065104277,
+      "request_tok_s": 21.569175889343537,
+      "speculative_decoding": null,
+      "text": "Let's break down this problem step by step. First, let's identify the parameters of the Master Theorem. Can you tell me what are the values of a, b, and f(n) in the recurrence relation T(n)=4T(n/2)+n? What is the value of a? What is the value of b? And what is the function f(n)? Remember, the Master Theorem applies to recurrences of the form T(n) = aT(n/b) + f(n). Can you identify these values? What is a? What is b? And what is f(n)? Remember, the Master Theorem applies to recurrences of the form T(n) = aT(n/b) + f(n). Can you identify these values? What is a? What is b? And what is f(n)? Remember, the Master Theorem applies to recurrences of"
+    },
+    {
+      "ttft_s": 0.3018776460085064,
+      "e2e_s": 8.935396850996767,
+      "output_tokens": 180,
+      "decode_tok_s": 20.84897198074221,
+      "request_tok_s": 20.14460051429283,
+      "speculative_decoding": null,
+      "text": "When we see the training loss continuing to decrease while the validation loss starts to increase, it suggests that the model is memorizing the training data rather than learning generalizable patterns. This phenomenon is known as overfitting. The model is becoming too specialized to the training set and is losing its ability to perform well on unseen data. Now, let's think about how we might address this issue. What steps could we take to prevent overfitting? How might we adjust our model or our training process to improve generalization? Remember, the goal is to find a balance between underfitting and overfitting. Can you think of any techniques or strategies that might help us achieve this balance? For example, could we use regularization techniques, adjust the model's complexity, or perhaps use more data for training? Let's explore these possibilities together. Remember, the key is to find a solution that improves"
+    }
+  ]
+}

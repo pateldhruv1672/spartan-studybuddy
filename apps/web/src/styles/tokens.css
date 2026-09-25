@@ -1,0 +1,72 @@
+:root {
+  /* Typography — a system-native sans stack throughout; monospace is the sole exception, for code/citations */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace;
+
+  /* Neutral scale */
+  --bg: #faf9f5;
+  --surface: #ffffff;
+  --surface-alt: #f1f0ea;
+  --border: #e8e6df;
+  --border-strong: #ddd9cf;
+  --ink: #17171a;
+  --ink-muted: #6b6a66;
+  --ink-faint: #8c8a83;
+
+  /* Primary & supporting */
+  --primary: #3452e1;
+  --primary-strong: #1f3399;
+  --primary-tint: #eaeefb;
+  --teal: #0e8f86;
+  --teal-tint: #e2f4f2;
+
+  /* Semantic states */
+  --success: #1e9e56;
+  --success-tint: #e9f7ee;
+  --success-ink: #157a41;
+  --warning: #d98a00;
+  --warning-tint: #fdf1dc;
+  --warning-ink: #a5670a;
+  --danger: #e5484d;
+  --danger-tint: #fce8e9;
+  --danger-ink: #b4232a;
+
+  /* Celebration accent — XP, streaks, achievements only */
+  --coral: #ff6b4a;
+  --coral-tint: #ffebe5;
+  --coral-ink: #c7440f;
+
+  /* Spacing — 4px base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* Elevation — soft, layered, restrained */
+  --shadow-sm: 0 1px 2px rgba(23, 23, 26, 0.03);
+  --shadow: 0 1px 2px rgba(23, 23, 26, 0.03), 0 8px 20px rgba(23, 23, 26, 0.05);
+  --shadow-lg: 0 2px 8px rgba(23, 23, 26, 0.04), 0 20px 44px rgba(23, 23, 26, 0.1);
+
+  /* Motion */
+  --motion-fast: 120ms ease;
+  --motion: 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion: 0ms;
+  }
+}

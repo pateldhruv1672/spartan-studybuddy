@@ -2,8 +2,8 @@ const vscode=require('vscode');
 const path=require('path');
 const fs=require('fs');
 const SUPPORTED=new Set(['.py','.js','.jsx','.ts','.tsx','.java','.go','.rs','.rb','.php','.swift','.kt','.scala','.sh','.sql','.r','.lua','.cs','.c','.h','.cpp','.hpp','.vue','.svelte','.md','.mdx','.txt','.json','.yaml','.yml','.toml','.xml','.css','.scss','.ipynb']);
-function conf(){const c=vscode.workspace.getConfiguration('spartan');return {api:c.get('api').replace(/\/$/,''),project:c.get('projectId'),user:c.get('userId'),indexOnSave:c.get('indexOnSave')}}
-async function call(route,body){const {api}=conf();const r=await fetch(api+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});if(!r.ok)throw new Error(await r.text());return r.json()}
+function conf(){const c=vscode.workspace.getConfiguration('spartan');return {api:c.get('api').replace(/\/$/,''),project:c.get('projectId'),user:c.get('userId'),token:c.get('authToken'),indexOnSave:c.get('indexOnSave')}}
+async function call(route,body){const {api,token}=conf();if(!token)throw new Error('Set Spartan StudyBuddy: Auth Token in Settings');const r=await fetch(api+route,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:body?JSON.stringify(body):undefined});if(!r.ok)throw new Error(await r.text());return r.json()}
 function rel(doc){const folder=vscode.workspace.getWorkspaceFolder(doc.uri);return folder?path.relative(folder.uri.fsPath,doc.uri.fsPath):path.basename(doc.uri.fsPath)}
 function diagnostics(doc){return vscode.languages.getDiagnostics(doc.uri).slice(0,20).map(d=>({severity:d.severity,message:d.message,line:d.range.start.line+1,source:d.source}))}
 

@@ -9,6 +9,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/manager', label: 'Overview', icon: '⌂', roles: ['manager'] },
   { to: '/learn', label: 'Home', icon: '⌂', roles: ['learner'] },
   { to: '/sources', label: 'Knowledge', icon: '◫', roles: ['manager'] },
+  { to: '/architecture', label: 'Architecture', icon: '▦', roles: ['manager', 'learner'] },
   { to: '/repository', label: 'Repository', icon: '◈', roles: ['manager', 'learner'] },
   { to: '/paths', label: 'Paths', icon: '↗', roles: ['manager', 'learner'] },
   { to: '/kit', label: 'Onboarding kit', icon: '❖', roles: ['manager', 'learner'] },

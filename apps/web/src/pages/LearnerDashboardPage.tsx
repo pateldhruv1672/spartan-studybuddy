@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { getLeaderboard, getLearnerSnapshot, getResumeFeed, sendEvent, startRoleOnboarding } from '../api/endpoints'
+import { getLeaderboard, getLearnerSnapshot, getResumeFeed, sendEvent, startRoleOnboarding, upsertResourceSession } from '../api/endpoints'
 import { errorMessage } from '../api/client'
 import { toast } from '../app/uiStore'
 import { useSessionStore } from '../app/sessionStore'
@@ -47,6 +47,28 @@ function clock(seconds?: number) {
   return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 }
 
+// YouTube's IFrame Player API script, loaded once and shared across every card that plays a video.
+// Without this, the embedded resume player is a bare cross-origin iframe with zero way to read back
+// playback position -- the extension's own <video> tracking only works on a real youtube.com tab
+// (see content.js), not inside an iframe embedded in our own page.
+let ytApiPromise: Promise<void> | null = null
+function loadYouTubeApi(): Promise<void> {
+  if (ytApiPromise) return ytApiPromise
+  ytApiPromise = new Promise((resolve) => {
+    const w = window as unknown as { YT?: { Player: unknown }; onYouTubeIframeAPIReady?: () => void }
+    if (w.YT?.Player) return resolve()
+    const prev = w.onYouTubeIframeAPIReady
+    w.onYouTubeIframeAPIReady = () => {
+      prev?.()
+      resolve()
+    }
+    const tag = document.createElement('script')
+    tag.src = 'https://www.youtube.com/iframe_api'
+    document.head.appendChild(tag)
+  })
+  return ytApiPromise
+}
+
 export function LearnerDashboardPage() {
   const { user, userId, projectId } = useSessionStore()
   const navigate = useNavigate()
@@ -54,13 +76,16 @@ export function LearnerDashboardPage() {
   const [recall, setRecall] = useState<{ item: ResumeItem; question: string } | null>(null)
   const [answer, setAnswer] = useState('')
   const [playingId, setPlayingId] = useState<string | number | null>(null)
+  const ytPlayerRef = useRef<{ getCurrentTime: () => number; getDuration: () => number; getPlayerState: () => number; destroy: () => void } | null>(null)
+  const ytSecondsActiveRef = useRef(0)
+  const playingMetaRef = useRef<{ url: string; title?: string } | null>(null)
 
   const { paths, loading: pathsLoading } = usePathDetails()
   const memberships = myMemberships(paths, userId)
   const active = memberships[0]
   const resume = useQuery({ queryKey: ['resume', userId, projectId], queryFn: () => getResumeFeed(userId, projectId ?? undefined), enabled: !!projectId })
   const learner = useQuery({ queryKey: ['learner', userId, projectId], queryFn: () => getLearnerSnapshot(userId, projectId!), enabled: !!projectId })
-  const stats = useQuery({ queryKey: ['leaderboard', projectId], queryFn: () => getLeaderboard(projectId!), enabled: !!projectId })
+  const stats = useQuery({ queryKey: ['leaderboard', projectId], queryFn: () => getLeaderboard(projectId!), enabled: !!projectId, refetchInterval: 15000 })
 
   const startRole = useMutation({
     mutationFn: (_opts?: { auto?: boolean }) => startRoleOnboarding({ user_id: userId, project_id: projectId! }),
@@ -82,6 +107,55 @@ export function LearnerDashboardPage() {
     if (memberships.length === 0) startRole.mutate({ auto: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.role, projectId, pathsLoading, memberships.length])
+
+  // Track playback of the embedded resume-card video via YouTube's IFrame Player API, polling every
+  // 5s and writing to the same resource_sessions table the Chrome extension writes to for a real
+  // youtube.com tab -- otherwise watching through this embedded player leaves last_position/progress
+  // stuck wherever they were before, since a bare cross-origin iframe gives the page no way to read
+  // playback state back out.
+  useEffect(() => {
+    if (playingId == null || !playingMetaRef.current) return
+    const meta = playingMetaRef.current
+    let cancelled = false
+    let intervalId: ReturnType<typeof setInterval> | null = null
+    ytSecondsActiveRef.current = 0
+    loadYouTubeApi().then(() => {
+      if (cancelled) return
+      const YT = (window as unknown as { YT: { Player: new (id: string, opts: unknown) => typeof ytPlayerRef.current } }).YT
+      const player = new YT.Player(`yt-player-${playingId}`, {
+        events: {
+          onReady: () => {
+            intervalId = setInterval(() => {
+              const p = ytPlayerRef.current
+              if (!p) return
+              if (p.getPlayerState() === 1) ytSecondsActiveRef.current += 5 // YT.PlayerState.PLAYING
+              const duration = p.getDuration() || undefined
+              const position = p.getCurrentTime() || 0
+              upsertResourceSession({
+                user_id: userId,
+                project_id: projectId ?? undefined,
+                url: meta.url,
+                title: meta.title,
+                resource_type: 'video',
+                seconds_active: ytSecondsActiveRef.current,
+                progress: duration ? Math.min(1, position / duration) : 0,
+                last_position: position,
+                duration,
+              }).catch(() => {})
+            }, 5000)
+          },
+        },
+      })
+      ytPlayerRef.current = player
+    })
+    return () => {
+      cancelled = true
+      if (intervalId) clearInterval(intervalId)
+      ytPlayerRef.current?.destroy?.()
+      ytPlayerRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playingId])
 
   const nextItems = useMemo(() => {
     if (!active) return []
@@ -203,7 +277,8 @@ export function LearnerDashboardPage() {
                 <div style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
                   {playingId === cardKey ? (
                     <iframe
-                      src={`https://www.youtube.com/embed/${vid}${r.last_position ? `?start=${Math.floor(r.last_position)}` : ''}&autoplay=1`}
+                      id={`yt-player-${cardKey}`}
+                      src={`https://www.youtube.com/embed/${vid}?${r.last_position ? `start=${Math.floor(r.last_position)}&` : ''}autoplay=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
                       title={r.resource_title || 'Video'}
                       allow="accelerate-compute; autoplay; encrypted-media; picture-in-picture"
                       allowFullScreen
@@ -211,7 +286,10 @@ export function LearnerDashboardPage() {
                     />
                   ) : (
                     <button
-                      onClick={() => setPlayingId(cardKey)}
+                      onClick={() => {
+                        playingMetaRef.current = { url: r.resource_url, title: r.resource_title }
+                        setPlayingId(cardKey)
+                      }}
                       style={{ width: '100%', height: '100%', padding: 0, border: 0, cursor: 'pointer', position: 'relative', background: 'none' }}
                       aria-label="Play video"
                     >

@@ -19,7 +19,9 @@ interface Row {
 export function LeaderboardPage() {
   const { userId, projectId } = useSessionStore()
   const [scope, setScope] = useState<string>('all')
-  const stats = useQuery({ queryKey: ['leaderboard', projectId, scope], queryFn: () => getLeaderboard(projectId!, scope === 'all' ? undefined : scope), enabled: !!projectId })
+  // Polling: XP events push over websocket only to the Employee who earned them, not to everyone
+  // else viewing this board, so a plain default-staleTime refetch wouldn't pick up someone else's activity.
+  const stats = useQuery({ queryKey: ['leaderboard', projectId, scope], queryFn: () => getLeaderboard(projectId!, scope === 'all' ? undefined : scope), enabled: !!projectId, refetchInterval: 15000 })
   const achievements = useQuery({ queryKey: ['achievements', 'project', projectId], queryFn: () => getProjectAchievements(projectId!), enabled: !!projectId, retry: false })
   const recent = [...(achievements.data ?? [])].sort((a, b) => b.earned_at.localeCompare(a.earned_at)).slice(0, 10)
   const { paths } = usePathDetails()

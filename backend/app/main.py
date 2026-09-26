@@ -26,6 +26,8 @@ from .services import auth,access
 from .services.resource_sessions import upsert_session,resume_feed
 from .services.telemetry import metrics_payload,recent_traces,ACTIVE_CONNECTIONS
 from .services.observability import configure_otel
+from .services.engineering_data import competition_results as load_competition_results, serving_profile_results
+from .services.live_traffic import snapshot as traffic_snapshot
 from .services.security import public_https_url,require_bridge
 from .agents.assistant import ask
 from .agents.onboarding import create_onboarding,get_path,list_paths,update_progress,join_path,add_resources
@@ -418,7 +420,17 @@ def traces(request:Request,limit:int=100):
     return recent_traces(min(max(limit,1),500),user['org_id'])
 @app.get('/api/admin/competition')
 def competition_results():
-    path=ROOT/'experiments'/'results'/'summary.json';return json.loads(path.read_text()) if path.exists() else {'available':False,'message':'Run make competition on the DGX Spark.'}
+    return load_competition_results(ROOT/'experiments'/'results')
+@app.get('/api/admin/traffic')
+def traffic(request: Request, limit: int = 200):
+    uid = access.check_any_manager(request)
+    user = access.user_row(uid)
+    if not user:
+        raise HTTPException(401, 'Not signed in')
+    return traffic_snapshot(user['org_id'], limit)
+@app.get('/api/admin/serving-profile')
+def serving_profile():
+    return serving_profile_results(ROOT/'experiments'/'results')
 
 @app.websocket('/ws/{user_id}')
 async def websocket(user_id:str,ws:WebSocket):

@@ -9,7 +9,11 @@ export function RequireAuth() {
   const { token, user, setUser, signOut } = useSessionStore()
   const location = useLocation()
 
-  const me = useQuery({ queryKey: ['auth', 'me', token], queryFn: getMe, enabled: !!token, retry: false, staleTime: 5 * 60 * 1000 })
+  // No local retry:false override here -- the global queryClient default already retries transient
+  // failures (network blips, a backend restart) and correctly stops on a real 401 via AppError.retryable.
+  // A local override that hard-disabled retries used to strand this exact screen on "Retrying…" forever
+  // after any one-off failure, since nothing ever re-issued the request.
+  const me = useQuery({ queryKey: ['auth', 'me', token], queryFn: getMe, enabled: !!token, staleTime: 5 * 60 * 1000 })
 
   useEffect(() => {
     if (me.data) setUser(me.data)

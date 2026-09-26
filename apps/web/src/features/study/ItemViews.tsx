@@ -146,6 +146,48 @@ interface Props {
   nextItemId?: string | null
 }
 
+function youtubeThumbnail(url: string): string | null {
+  try {
+    const u = new URL(url)
+    const id = u.hostname === 'youtu.be' ? u.pathname.slice(1) : u.hostname.includes('youtube.com') ? u.searchParams.get('v') : null
+    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null
+  } catch {
+    return null
+  }
+}
+
+/** The curated video/article for THIS specific concept/reading/walkthrough step, matched by the
+ * exact topic id the backend already resolved (see the topic/module_id reverse-mapping in
+ * get_path()) -- not the fuzzy word-overlap matching the 'resource' kind below uses, which only
+ * ever applies to LLM-engine "external_resource" items. Graph-engine items (concept/doc_reading/
+ * internal_walkthrough) never hit that branch at all, which is why a section like "Layered
+ * architecture" showed nothing here even though the resource existed and rendered fine elsewhere. */
+function AttachedResource({ path, item }: { path: OnboardingPath; item: PathModuleItem | PathExercise }) {
+  const { userId, projectId } = useSessionStore()
+  const itemTopic = 'topic' in item && item.topic ? item.topic : undefined
+  const resource = itemTopic ? (path.resources || []).find((r) => r.topic === itemTopic) : undefined
+  if (!resource) return null
+  const shot = resource.metadata?.screenshot_base64
+  const thumb = youtubeThumbnail(resource.url) || (typeof shot === 'string' ? `data:image/png;base64,${shot}` : null)
+  return (
+    <a
+      href={resource.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => sendEvent({ user_id: userId, project_id: projectId ?? undefined, type: 'article.opened', resource_id: resource.url, context: { path_id: path.id, item_id: item.id } }).catch(() => {})}
+      className="card"
+      style={{ display: 'flex', gap: 14, alignItems: 'center', textDecoration: 'none', color: 'inherit' }}
+    >
+      {thumb && <img src={thumb} alt="" style={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />}
+      <div>
+        <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', marginBottom: 2 }}>{resource.resource_type || 'resource'}</div>
+        <b style={{ fontSize: 15 }}>{resource.title} ↗</b>
+        {resource.rationale && <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{resource.rationale}</div>}
+      </div>
+    </a>
+  )
+}
+
 export function StudyItemView({ path, item, kind, nextItemId }: Props) {
   const { userId, projectId } = useSessionStore()
   const [draft, setDraft] = useDraft(`draft:${userId}:${path.id}:${item.id}`)
@@ -169,6 +211,7 @@ export function StudyItemView({ path, item, kind, nextItemId }: Props) {
         <p style={{ fontSize: 16, lineHeight: 1.7 }}>
           Read <b>{topic}</b> in the project's own documentation. Open each source below, skim the headings first, then note what a new teammate would need to know.
         </p>
+        <AttachedResource path={path} item={item} />
         <ItemRefs item={item} />
         {!hasRefs(item) && (
           <p className="muted">
@@ -190,6 +233,7 @@ export function StudyItemView({ path, item, kind, nextItemId }: Props) {
         <p style={{ fontSize: 16, lineHeight: 1.7 }}>
           <b>{topic}</b> shows up throughout this codebase. Get the idea first, then look at where the project uses it below.
         </p>
+        <AttachedResource path={path} item={item} />
         <ItemRefs item={item} />
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <AskLink mode="explain" prompt={`Explain ${topic} simply, with an analogy, then show where this codebase uses it.`}>
@@ -209,6 +253,7 @@ export function StudyItemView({ path, item, kind, nextItemId }: Props) {
         <p style={{ fontSize: 16, lineHeight: 1.7 }}>
           Walk through <b>{topic}</b> in the real repository. Open each reference below, read how it fits together, then explain the flow in your own words.
         </p>
+        <AttachedResource path={path} item={item} />
         <ItemRefs item={item} />
         {!hasRefs(item) && (
           <p className="muted">

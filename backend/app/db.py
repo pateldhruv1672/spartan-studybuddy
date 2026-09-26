@@ -348,6 +348,14 @@ def init_db() -> None:
                VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT(id) DO NOTHING''',
             (settings.demo_user_id, settings.demo_org_id, 'Alex Morgan', 'alex@aperture.local', 'ML Engineer', 'AM'),
         )
+        # Demo Manager account. password_hash only set if the row doesn't exist yet, so a real password
+        # change (change_password) or re-seed never resets/overwrites an existing one.
+        from .services.auth import hash_password
+        conn.execute(
+            '''INSERT INTO users(id,org_id,display_name,email,avatar,app_role,password_hash)
+               VALUES(%s,%s,%s,%s,%s,'manager',%s) ON CONFLICT(id) DO NOTHING''',
+            ('demo-admin', settings.demo_org_id, 'Admin', 'admin@gmail.com', 'AD', hash_password('demo1234')),
+        )
 
 
 def database_health() -> dict[str, Any]:

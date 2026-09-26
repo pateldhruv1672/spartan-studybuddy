@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getCompetition, getHealth, getTraces } from '../api/endpoints'
+import { getCompetition, getHealth, getServingProfiles, getTraffic, getTraces } from '../api/endpoints'
 import { Badge } from '../components/primitives/Badge'
 import { Button } from '../components/primitives/Button'
 import { Card, CardTitle, StatCard } from '../components/primitives/Card'
 import { Skeleton } from '../components/primitives/Feedback'
-import { Drawer, KeyValue, NeedsBackend, Section, timeAgo } from '../components/primitives/Layout'
-import type { AgentTrace, CompetitionSummary } from '../api/types'
+import { Drawer, KeyValue, Section, timeAgo } from '../components/primitives/Layout'
+import type { AgentTrace, CompetitionSummary, ServingProfile } from '../api/types'
 
 const NOT_MEASURED = <span className="muted">Not measured yet</span>
 
@@ -21,39 +21,31 @@ function change(v: number | null | undefined, higherIsBetter: boolean) {
   const good = higherIsBetter ? v > 0 : v < 0
   return <b style={{ color: good ? 'var(--success-ink)' : 'var(--danger-ink)' }}>{`${v > 0 ? '+' : ''}${Number(v).toFixed(1)}%`}</b>
 }
-function percentile(sorted: number[], p: number) {
-  if (!sorted.length) return null
-  return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))]
-}
-
 export function EngineeringLabPage() {
   const [trace, setTrace] = useState<AgentTrace | null>(null)
   const health = useQuery({ queryKey: ['health'], queryFn: getHealth, refetchInterval: 20000 })
   const competition = useQuery({ queryKey: ['competition'], queryFn: getCompetition })
   const traces = useQuery({ queryKey: ['traces'], queryFn: () => getTraces(200), refetchInterval: 15000 })
+  const serving = useQuery({ queryKey: ['serving-profile'], queryFn: getServingProfiles })
+  const traffic = useQuery({ queryKey: ['traffic'], queryFn: () => getTraffic(200), refetchInterval: 5000 })
 
   const s: CompetitionSummary = competition.data?.summary ?? competition.data ?? {}
   const measured = competition.data?.available !== false && !!(s.socratic_quality || s.speculative_decoding || s.serving_base_vs_tuned)
   const q = s.socratic_quality
   const sv = s.serving_base_vs_tuned
   const sp = s.speculative_decoding
+  const profiles: ServingProfile[] = serving.data?.profiles || []
 
-  const agg = useMemo(() => {
-    const rows = traces.data || []
-    const lat = rows.map((t) => t.latency_ms).filter((v): v is number => v != null).sort((a, b) => a - b)
-    const ttft = rows.map((t) => t.ttft_ms).filter((v): v is number => v != null).sort((a, b) => a - b)
-    const ok = rows.filter((t) => t.success === 1 || t.success === true).length
-    return {
-      count: rows.length,
-      successRate: rows.length ? ok / rows.length : null,
-      p50: percentile(lat, 50),
-      p95: percentile(lat, 95),
-      ttftP50: percentile(ttft, 50),
-      tokensIn: rows.reduce((a, t) => a + (t.input_tokens || 0), 0),
-      tokensOut: rows.reduce((a, t) => a + (t.output_tokens || 0), 0),
-      routes: Array.from(new Set(rows.map((t) => t.route).filter(Boolean))) as string[],
-    }
-  }, [traces.data])
+  const agg = {
+    count: traffic.data?.sample_size ?? 0,
+    successRate: traffic.data?.success_rate ?? null,
+    p50: traffic.data?.latency_p50_ms ?? null,
+    p95: traffic.data?.latency_p95_ms ?? null,
+    ttftP50: traffic.data?.ttft_p50_ms ?? null,
+    tokensIn: traffic.data?.tokens_in ?? 0,
+    tokensOut: traffic.data?.tokens_out ?? 0,
+    routes: traffic.data?.routes ?? [],
+  }
 
   const grafana = `${location.protocol}//${location.hostname}:3001`
 
@@ -103,10 +95,7 @@ export function EngineeringLabPage() {
       {!measured && !competition.isLoading && (
         <div className="card-flat section">
           <b>No competition results yet.</b>
-          <p className="muted" style={{ margin: '6px 0 10px' }}>
-            {competition.data?.message || 'Run the full pipeline on the DGX Spark to fill the tables below.'}
-          </p>
-          <code style={{ background: 'var(--surface-alt)', padding: '8px 12px', borderRadius: 8, display: 'inline-block' }}>make competition</code>
+          <p className="muted">{competition.data?.message || 'Measured evaluation artifacts are not available yet.'}</p>
         </div>
       )}
 
@@ -144,13 +133,8 @@ export function EngineeringLabPage() {
                   <b>{rate(q?.tuned_question_rate)}</b>
                 </td>
               </tr>
-              {['Correct direct answers in Direct mode', 'Hint quality', 'Groundedness', 'Code-teaching quality', 'Concision'].map((m) => (
-                <tr key={m}>
-                  <td>{m}</td>
-                  <td>{NOT_MEASURED}</td>
-                  <td>{NOT_MEASURED}</td>
-                </tr>
-              ))}
+              <tr><td>Guidance marker rate</td><td>{rate(q?.base_guidance_marker_rate)}</td><td><b>{rate(q?.tuned_guidance_marker_rate)}</b></td></tr>
+              <tr><td>Concision rate</td><td>{rate(q?.base_concise_rate)}</td><td><b>{rate(q?.tuned_concise_rate)}</b></td></tr>
             </tbody>
           </table>
           {q?.score_delta_points != null && (
@@ -229,10 +213,22 @@ export function EngineeringLabPage() {
             </tr>
           </tbody>
         </table>
-        <div className="grid-2" style={{ marginTop: 14 }}>
-          <NeedsBackend endpoint="GET /api/admin/serving-profile">The selected profile from recommended_serving.env, with n-gram and Eagle-3 compared side by side and draft acceptance rates.</NeedsBackend>
-          <NeedsBackend endpoint="GET /api/admin/competition">Currently reads experiments/results/comparison.json, but the pipeline writes summary.json — results won't show until one side is aligned.</NeedsBackend>
-        </div>
+        <Section eyebrow="MEASURED SERVING PROFILES" title="What was actually tested">
+          {serving.isLoading ? <Skeleton height={80} /> : profiles.length === 0 ? <p className="muted">{serving.data?.message || "No serving benchmark artifacts are available yet."}</p> : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <caption>Saved DGX Spark benchmark artifacts</caption>
+                <thead><tr><th>Profile</th><th>TTFT p50</th><th>Decode</th><th>Aggregate</th><th>Draft acceptance</th><th>Mean accepted</th></tr></thead>
+                <tbody>{profiles.map((p) => <tr key={p.artifact}>
+                  <td><b>{p.label}</b> {p.recommended && <Badge tone="success">Recommended</Badge>}<div className="muted">{p.profile || "—"}</div></td>
+                  <td>{num(p.ttft_p50_s, 3, " s")}</td><td>{num(p.decode_tok_s_p50, 1, " tok/s")}</td><td>{num(p.aggregate_output_tok_s, 1, " tok/s")}</td>
+                  <td>{rate(p.draft_acceptance_rate)}</td><td>{num(p.mean_acceptance_length, 2)}</td>
+                </tr>)}</tbody>
+              </table>
+              <p className="muted" style={{ marginTop: 10 }}>{serving.data?.message}</p>
+            </div>
+          )}
+        </Section>
       </Card>
 
       <Section eyebrow="LIVE TRAFFIC" title="Requests through the model router">

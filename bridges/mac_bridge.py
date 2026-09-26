@@ -39,6 +39,9 @@ POLL_SECONDS = float(os.getenv("STUDYBUDDY_BRIDGE_POLL", "2"))
 MAX_STEPS = int(os.getenv("STUDYBUDDY_BROWSER_MAX_STEPS", "25"))
 FLASH_MODE = os.getenv("STUDYBUDDY_BROWSER_FLASH_MODE", "1") == "1"
 USE_VISION = os.getenv("STUDYBUDDY_BROWSER_USE_VISION", "0") == "1"
+# Bounded, not unlimited: all concurrent scouts share one Chrome instance (many tabs/renderer
+# processes at once) and one shared light8b model behind the Spark's /agent-llm proxy.
+MAX_CONCURRENT_SCOUTS = int(os.getenv("STUDYBUDDY_BROWSER_MAX_CONCURRENT_SCOUTS", "3"))
 
 
 async def get_jobs() -> list[dict[str, Any]]:
@@ -83,12 +86,20 @@ def _build_llm():
 
 
 def _build_browser():
-    """Attach to the visible StudyBuddy Chrome, preserving logins/extensions."""
+    """Attach to the visible StudyBuddy Chrome, preserving logins/extensions.
+
+    keep_alive=True is required for the post-run screenshot/video-duration capture in
+    run_browser_use() to work at all: Agent.run() calls self.close() internally right before
+    returning, which (without keep_alive) calls browser_session.kill() and tears down the CDP root
+    client -- confirmed directly via a live bridge log showing "AssertionError: Root CDP client not
+    initialized" on 100% of screenshot attempts, even on fully successful runs. Our own code still
+    explicitly closes the tabs/session afterward in run_browser_use()'s finally block once it's done
+    reading from the page, so nothing actually leaks by skipping Agent's own auto-close."""
     from browser_use import Browser
 
     if CDP_URL:
-        return Browser(cdp_url=CDP_URL)
-    return Browser.from_system_chrome(profile_directory=CHROME_PROFILE)
+        return Browser(cdp_url=CDP_URL, keep_alive=True)
+    return Browser.from_system_chrome(profile_directory=CHROME_PROFILE, keep_alive=True)
 
 
 class _ScoutResource(BaseModel):
@@ -172,30 +183,43 @@ def _build_tools():
     return tools
 
 
-async def _close_all_tabs() -> None:
-    """Talks to the CDP HTTP endpoint directly (GET /json/list, GET /json/close/<id>) rather than
-    browser_use's own Browser.get_tabs()/close_page(), which go through its own cached target list
-    and were measured stale enough after a real run that closing "everything get_tabs() returns"
-    left most of the actual open tabs behind. Closing all targets including the last one is safe
-    here specifically because this bridge only ever runs against a real Chrome.app on macOS, which
-    does not quit when its last window/tab closes; the next job just opens a fresh tab itself."""
+async def _list_tab_ids() -> set[str]:
+    """Raw CDP HTTP (GET /json/list) rather than browser_use's own Browser.get_tabs(), which goes
+    through its own cached target list -- measured stale enough after a real run that acting on
+    "everything get_tabs() returns" missed most of the actual open tabs."""
     if not CDP_URL:
-        return
+        return set()
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             live = (await c.get(f"{CDP_URL.rstrip('/')}/json/list")).json()
-            for t in live:
-                tid = t.get("id")
-                if tid:
-                    try:
-                        await c.get(f"{CDP_URL.rstrip('/')}/json/close/{tid}")
-                    except Exception:
-                        pass
+            return {t["id"] for t in live if t.get("id")}
+    except Exception:
+        return set()
+
+
+async def _close_tabs(ids: set[str]) -> None:
+    if not CDP_URL or not ids:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            for tid in ids:
+                try:
+                    await c.get(f"{CDP_URL.rstrip('/')}/json/close/{tid}")
+                except Exception:
+                    pass
     except Exception:
         pass
 
 
-async def run_browser_use(task: str, max_steps: int | None = None, output_model_schema: type[BaseModel] = _ScoutOutput) -> dict[str, Any]:
+async def _close_all_tabs() -> None:
+    """Closing all targets including the last one is safe here specifically because this bridge
+    only ever runs against a real Chrome.app on macOS, which does not quit when its last window/tab
+    closes -- the next job just opens a fresh tab itself. Only safe to call when nothing else is
+    concurrently using the browser (see run_topic_scout's job-level call, not per-topic)."""
+    await _close_tabs(await _list_tab_ids())
+
+
+async def run_browser_use(task: str, max_steps: int | None = None, output_model_schema: type[BaseModel] = _ScoutOutput, close_before: bool = True) -> dict[str, Any]:
     try:
         from browser_use import Agent
     except Exception as exc:
@@ -211,9 +235,14 @@ async def run_browser_use(task: str, max_steps: int | None = None, output_model_
     # was to click a button on the user's own already-open onboarding path page, because that page
     # (not a blank tab) was what the agent found when it started. Closing every tab before the run
     # begins means the agent always starts from nothing, regardless of what's open elsewhere.
-    await _close_all_tabs()
+    # Skippable (close_before=False) for a run that's one of several happening concurrently --
+    # closing everything mid-flight would tear down a sibling run's in-progress tabs. The caller is
+    # then responsible for doing this once, up front, before any of them start.
+    if close_before:
+        await _close_all_tabs()
 
     browser = None
+    tabs_before = await _list_tab_ids()
     try:
         llm = _build_llm()
         browser = _build_browser()
@@ -226,6 +255,15 @@ async def run_browser_use(task: str, max_steps: int | None = None, output_model_
             max_actions_per_step=2,
             flash_mode=FLASH_MODE,
             output_model_schema=output_model_schema,
+            # Default (60-75s depending on provider auto-detection) was measured too tight
+            # specifically for the 'done' action: it carries the full output_model_schema (7
+            # required fields for _ScoutResource) on top of whatever other actions are in play,
+            # by far the most tokens any single action in this tool set has to generate -- at this
+            # model's throughput that reliably ran past the deadline and came back as "Model
+            # returned empty action" right as the agent tried to finish, discarding an otherwise
+            # fully successful run. Every other action (search/click/scroll/...) is far smaller and
+            # was never the one timing out.
+            llm_timeout=150,
         )
         history = await agent.run(max_steps=max_steps or MAX_STEPS)
         final = history.final_result() if hasattr(history, "final_result") else str(history)
@@ -237,8 +275,48 @@ async def run_browser_use(task: str, max_steps: int | None = None, output_model_
         try:
             png = await browser.take_screenshot(full_page=False)
             screenshot_b64 = base64.b64encode(png).decode()
+        except Exception as shot_exc:
+            print(f"Screenshot capture failed (non-fatal): {type(shot_exc).__name__}: {shot_exc}", file=sys.stderr)
+        # Ground truth for the single-resource shape (_ScoutResource): the model retypes the URL as
+        # free text into its own JSON 'done' output instead of the code reading it from the real
+        # browser state -- same failure class as every other URL-hallucination bug this session
+        # (navigate typos, fabricated video IDs), just on the output side instead of navigation.
+        # Observed directly: a real run landed on the correct Substack post but the model's own
+        # 'url' field came back as the bare domain "https://substack.com". The task prompt already
+        # tells the agent to be sitting on the resource's page when it calls done, so the CDP
+        # session's actual current-tab URL is authoritative here and overrides whatever text the
+        # model wrote.
+        actual_url = None
+        try:
+            actual_url = await browser.get_current_page_url()
+            if actual_url in (None, "", "about:blank"):
+                actual_url = None
         except Exception:
             pass
+        # Ground truth for video length too: "see video duration from dom/inspect element stuff"
+        # means reading it, not asking the model to eyeball a timestamp off the page and retype it
+        # (the model is exactly as unreliable at that as it is at retyping URLs -- see actual_url
+        # above). A native <video> element's own .duration is the real length regardless of what a
+        # human-facing "12:34" label says; this is a single narrow, read-only CDP eval done by OUR
+        # code, not the 'evaluate' agent action (deliberately excluded from Tools() so the model
+        # itself can't run arbitrary JS). No-ops harmlessly on any page without a <video> element,
+        # e.g. an article -- so it's safe to always attempt.
+        video_duration_min = None
+        try:
+            cdp_session = await browser.get_or_create_cdp_session()
+            js_result = await cdp_session.cdp_client.send.Runtime.evaluate(
+                params={
+                    "expression": "(function(){var v=document.querySelector('video');"
+                    "return (v&&v.duration&&isFinite(v.duration))?v.duration:null})()",
+                    "returnByValue": True,
+                },
+                session_id=cdp_session.session_id,
+            )
+            val = (js_result or {}).get("result", {}).get("value")
+            if isinstance(val, (int, float)) and val > 0:
+                video_duration_min = max(1, round(val / 60))
+        except Exception as dur_exc:
+            print(f"Video duration capture failed (non-fatal): {type(dur_exc).__name__}: {dur_exc}", file=sys.stderr)
     except Exception as exc:
         return {
             "ok": False,
@@ -252,8 +330,11 @@ async def run_browser_use(task: str, max_steps: int | None = None, output_model_
         # Leaving tabs open after a job (including any still-playing media, e.g. an autoplaying
         # YouTube tab) piles up indefinitely across runs (observed: 46 tabs / 38 renderer processes
         # after ~3 hours) and is exactly the kind of leftover state that contaminates the NEXT job's
-        # starting page -- see the comment above _close_all_tabs().
-        await _close_all_tabs()
+        # starting page -- see the comment above _close_all_tabs(). Scoped to tabs THIS run created
+        # (diffed against tabs_before) rather than closing everything, so a concurrent sibling run's
+        # still-in-progress tabs survive.
+        tabs_after = await _list_tab_ids()
+        await _close_tabs(tabs_after - tabs_before)
         if browser is not None:
             try:
                 await browser.stop()
@@ -277,6 +358,15 @@ async def run_browser_use(task: str, max_steps: int | None = None, output_model_
     if isinstance(parsed, dict):
         if 'resources' in parsed:
             parsed['resources'] = sanitize_resources(parsed['resources'])
+        elif 'url' in parsed:
+            # Single-resource shape only (see comment above the actual_url capture) -- a
+            # 'resources' list can span several pages visited over the run, so the final page
+            # isn't ground truth for all of them; only the single-resource _ScoutResource shape
+            # guarantees the agent is on the reported page when it calls done.
+            if actual_url:
+                parsed['url'] = actual_url
+            if video_duration_min:
+                parsed['estimated_minutes'] = video_duration_min
         return {"ok": True, "provider": BROWSER_PROVIDER, "final_result": final, "screenshot_base64": screenshot_b64, **parsed}
     return {"ok": True, "provider": BROWSER_PROVIDER, "final_result": final, "screenshot_base64": screenshot_b64}
 
@@ -325,6 +415,14 @@ def _valid_resource_url(url: Any) -> bool:
     return True
 
 
+def _is_youtube_url(url: str) -> bool:
+    try:
+        host = (urlparse(url).hostname or '')
+    except ValueError:
+        return False
+    return host == 'youtu.be' or host.endswith('youtube.com')
+
+
 def sanitize_resources(resources: Any) -> list[dict]:
     """Drop resources with a malformed URL and de-duplicate by URL, keeping first occurrence
     (order = the model's own recommended_order). Applied to every scout/research job's output
@@ -353,7 +451,9 @@ def build_scout_task(payload: dict[str, Any], kind: str) -> str:
         "You are the browser-side resource scout for Spartan StudyBuddy. "
         "Use only publicly accessible educational resources. "
         "Do not use paid AI APIs. Prefer official documentation, university material, primary research, "
-        "reputable technical blogs (GeeksforGeeks and Medium are good defaults for programming/CS topics), "
+        "reputable technical blogs (GeeksforGeeks and Medium are good defaults for programming/CS topics -- "
+        "if Medium shows an 'Open in app' banner/button, ignore it and never click it, it leads to an app-store "
+        "page with no article content; the real article is already visible on the page behind/below it), "
         "high-quality YouTube educational videos, and library catalog metadata. "
         "Return ONLY a JSON object. Include a resources array. Each resource must have: title, url, "
         "resource_type (documentation, article, video, paper, book, course or tutorial), source, difficulty, why, recommended_order, estimated_minutes, topic. Copy the exact matching topic phrase; explain what the resource teaches. Visit each page, scroll down to read its actual body content (not just the title), and confirm it really covers the topic before selecting it. If this is web_research, also include synthesis and evidence_notes. Prefer arXiv/primary papers for research claims -- use the arxiv_search action directly for any topic with academic/research depth, instead of searching the web for it. Do not wrap JSON in markdown. Never bypass paywalls, DRM, access controls, "
@@ -366,18 +466,43 @@ def build_scout_task(payload: dict[str, Any], kind: str) -> str:
     )
 
 
-def build_topic_task(topic: str) -> str:
+def build_topic_task(topic: str, target_minutes: int | None = None, resource_type: str | None = None) -> str:
+    length_hint = (
+        f"The learner has about {target_minutes} minutes for this -- prefer a resource that roughly fits that "
+        f"(a quick doc/article for a short budget, a fuller course/video for a longer one), and set estimated_minutes "
+        "to your honest estimate of the resource's OWN actual length, not the target itself. "
+        if target_minutes else ""
+    )
+    # Assigned per-topic so the course as a whole ends up with a healthy video/article mix instead of
+    # whatever type the scout happens to stumble on first -- see topic_resource_type in onboarding.py.
+    type_hint = ""
+    if resource_type == "video":
+        type_hint = (
+            "This topic specifically needs a YouTube VIDEO, not an article or doc page -- search with "
+            "terms like \"<topic> tutorial\" or \"<topic> explained\" and pick a real video you clicked "
+            "through to from the search results. Only fall back to a non-video resource if, after actually "
+            "trying, no genuinely relevant video exists. "
+        )
+    elif resource_type == "article":
+        type_hint = (
+            "This topic specifically needs a written ARTICLE, blog post, or documentation page, not a "
+            "video. Only fall back to a video if, after actually trying, no genuinely relevant written "
+            "resource exists. "
+        )
     return (
         "You are the browser-side resource scout for Spartan StudyBuddy. "
         "Use only publicly accessible educational resources. Do not use paid AI APIs. "
         "Prefer official documentation, university material, primary research, "
-        "reputable technical blogs (GeeksforGeeks and Medium are good defaults for programming/CS topics), "
+        "reputable technical blogs (GeeksforGeeks and Medium are good defaults for programming/CS topics -- "
+        "if Medium shows an 'Open in app' banner/button, ignore it and never click it, it leads to an app-store "
+        "page with no article content; the real article is already visible on the page behind/below it), "
         "high-quality YouTube educational videos, and library catalog metadata. "
         "Prefer arXiv/primary papers for research claims -- use the arxiv_search action directly for topics with academic/research depth. "
         "Never bypass paywalls, DRM, access controls, CAPTCHAs, or institutional restrictions. If a site requires a human login/MFA step, stop and report it. "
         "There is no navigate-to-URL action -- you cannot type a URL. Use the search action, then click a real result to open it. "
         "If a page doesn't look right, use go_back and click a different result -- do not click the same result twice. "
-        f'Find exactly ONE good public resource for this single topic: "{topic}". If a genuinely relevant YouTube video appears in '
+        f'Find exactly ONE good public resource for this single topic: "{topic}". {length_hint}{type_hint}'
+        "If a genuinely relevant YouTube video appears in "
         "the search results, prefer it -- but only a real one you actually clicked to, never guess a video exists. Visit the page, "
         "scroll to read its actual body content, confirm it covers the topic, then call done immediately with that one resource. "
         "Do not keep looking for a second or better resource -- the first one that genuinely covers the topic is enough. "
@@ -386,20 +511,41 @@ def build_topic_task(topic: str) -> str:
     )
 
 
-async def run_topic_scout(topic: str) -> dict | None:
+async def run_topic_scout(topic: str, target_minutes: int | None = None, resource_type: str | None = None, close_before: bool = True) -> dict | None:
     """One small, focused browser-use run per topic instead of one big session juggling all of
     them -- measured directly: an 8B model tracking N topics' worth of state in its own working
     memory across 20+ steps got stuck re-reading a PDF it had already fully extracted 5 times in a
     row instead of recognizing it had what it needed and moving to the next topic. A single-topic
     task never needs that much working memory, and output_model_schema=_ScoutResource (one object,
-    not an array) matches how small the job actually is."""
-    task = build_topic_task(topic)
-    for _attempt in range(2):
-        result = await run_browser_use(task, max_steps=10, output_model_schema=_ScoutResource)
+    not an array) matches how small the job actually is.
+
+    target_minutes: the learner's actual time budget for this topic (from the onboarding plan's
+    hours_per_week), so the scout prefers a resource of roughly the right length instead of
+    whatever it happens to find -- previously unused, meaning a 15-minute budget and a 3-hour
+    budget got treated identically.
+
+    resource_type: 'video' or 'article' when this topic was assigned one (see topic_resource_type in
+    onboarding.py), so a course ends up with a balanced mix instead of whatever type each topic
+    happens to turn up. Best-effort over the retry budget -- if the requested type genuinely isn't
+    findable, the last attempt's result is accepted anyway rather than returning nothing."""
+    task = build_topic_task(topic, target_minutes, resource_type)
+    last_result = None
+    attempts = 2
+    for attempt in range(attempts):
+        result = await run_browser_use(task, max_steps=10, output_model_schema=_ScoutResource, close_before=close_before)
         if result.get("ok") and result.get("url") and result.get("title") and _valid_resource_url(result.get("url")):
+            is_video = result.get("resource_type") == "video" or _is_youtube_url(result.get("url", ""))
+            type_mismatch = (resource_type == "video" and not is_video) or (resource_type == "article" and is_video)
+            if type_mismatch and attempt < attempts - 1:
+                last_result = result
+                continue
             r = {k: result.get(k) for k in ("title", "url", "resource_type", "source", "difficulty", "why", "recommended_order", "estimated_minutes", "topic", "screenshot_base64")}
             r.setdefault("topic", topic)
             return r
+    if last_result:
+        r = {k: last_result.get(k) for k in ("title", "url", "resource_type", "source", "difficulty", "why", "recommended_order", "estimated_minutes", "topic", "screenshot_base64")}
+        r.setdefault("topic", topic)
+        return r
     return None
 
 
@@ -437,13 +583,40 @@ async def execute(job: dict[str, Any]) -> dict[str, Any]:
         topics = safe_topics(payload.get("topics"))
         if not topics:
             return {"ok": False, "error": "No approved public topics supplied"}
+        target_minutes_by_topic = payload.get("topic_target_minutes") or {}
+        resource_type_by_topic = payload.get("topic_resource_type") or {}
         # One small, focused run per topic (see run_topic_scout) instead of one long session
         # covering all of them -- the previous multi-topic design reliably looped once an 8B
         # model's own working memory got overloaded tracking several topics' progress at once.
-        # Sequential, not parallel: every run shares one Chrome via CDP, and _close_all_tabs()
-        # closes ALL tabs at the start/end of each run -- running topics concurrently would have
-        # one topic's cleanup tear down another topic's still-in-progress tabs.
-        resources = [r for r in [await run_topic_scout(t) for t in topics] if r]
+        # Concurrent, bounded by MAX_CONCURRENT_SCOUTS: the contamination-guard close happens ONCE
+        # here, before any topic starts (each individual run skips it via close_before=False), and
+        # each run's own cleanup is scoped to only the tabs it created (see run_browser_use) -- so
+        # sibling runs sharing one Chrome instance don't tear each other's tabs down mid-flight.
+        await _close_all_tabs()
+        sem = asyncio.Semaphore(MAX_CONCURRENT_SCOUTS)
+        # A gate (not a per-index delay) so EVERY connect is spaced out, not just the first wave.
+        # browser_use's CDP connect() does a full target-discovery+auto-attach handshake against
+        # Chrome and is given a *hardcoded* 15s budget (not configurable from here) -- measured
+        # directly that sessions hitting that handshake in the same instant serialize inside Chrome
+        # and blow the deadline for all of them ("connect() timed out after 15s" -> cascades into
+        # "AssertionError: Root CDP client not initialized" wherever the code then touches that
+        # browser, e.g. our own screenshot capture). An index-based pre-semaphore delay only
+        # staggers the FIRST wave of MAX_CONCURRENT_SCOUTS topics -- once one finishes and frees its
+        # slot, whichever topic grabs that slot next starts connecting immediately, with no
+        # guarantee it's spaced from whatever ELSE just grabbed a freed slot at the same moment.
+        # Holding a lock for CONNECT_STAGGER_S right before each connect guarantees a minimum gap
+        # between every connect, first-wave or not.
+        connect_gate = asyncio.Lock()
+        CONNECT_STAGGER_S = float(os.getenv("STUDYBUDDY_BROWSER_CONNECT_STAGGER_S", "5"))
+
+        async def _scout(t: str) -> dict | None:
+            async with sem:
+                async with connect_gate:
+                    await asyncio.sleep(CONNECT_STAGGER_S)
+                return await run_topic_scout(t, target_minutes_by_topic.get(t), resource_type_by_topic.get(t), close_before=False)
+
+        results = await asyncio.gather(*(_scout(t) for t in topics))
+        resources = [r for r in results if r]
         if not resources:
             return {"ok": False, "error": "Resource scouting found no usable resource for any topic"}
         return {"ok": True, "resources": sanitize_resources(resources)}

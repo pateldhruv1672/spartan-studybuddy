@@ -73,21 +73,33 @@
     const type=isYoutube()?'youtube':(articleType()||'web');
     chrome.runtime.sendMessage({type:'session',session:{url:location.href,title:pageTitle(),resource_type:type,seconds_active:activeSeconds,progress,last_position:lastPosition,duration:duration||null,visible_text:text,concepts}}).catch(()=>{});activeSeconds=0;
   }
-  document.addEventListener('visibilitychange',()=>{tick();if(document.hidden)flush('hidden')});window.addEventListener('beforeunload',()=>{tick();flush('unload')});setInterval(()=>{tick();flush()},30000);
-  // Resume-card deep link for non-video pages: "#studybuddy-resume=0.42" -> scroll to that
-  // fraction of the page once content has rendered. YouTube resumes via the native ?t= param
-  // instead (set by the dashboard), so this only applies elsewhere.
-  if(!isYoutube()){
-    const m=location.hash.match(/studybuddy-resume=([\d.]+)/);
-    if(m){
-      const target=Math.max(0,Math.min(1,parseFloat(m[1])));
-      let attempts=0;
-      const tryScroll=()=>{attempts++;const scrollable=document.documentElement.scrollHeight-window.innerHeight;if(scrollable>200||attempts>10){window.scrollTo({top:target*Math.max(1,scrollable),behavior:'smooth'});maxScrollProgress=target}else{setTimeout(tryScroll,300)}};
-      setTimeout(tryScroll,300)
+  // Never track the StudyBuddy app's own pages as a "resource" -- this content script matches
+  // <all_urls>, which includes the app itself, and without this check every path/study page you
+  // visit while using StudyBuddy showed up in your own resume feed as a resource titled "Spartan
+  // StudyBuddy", crowding out the real videos/articles you were actually resuming (the dashboard
+  // only shows the 3 most recent, so a couple of self-tracked app-page entries was enough to push
+  // real resume cards out entirely).
+  (async()=>{
+    try{
+      const stored=await chrome.storage.local.get({api:'http://100.108.27.105:8001'});
+      if(stored.api&&new URL(stored.api).origin===location.origin)return;
+    }catch(e){/* if we can't tell, default to tracking rather than silently dropping real resources */}
+    document.addEventListener('visibilitychange',()=>{tick();if(document.hidden)flush('hidden')});window.addEventListener('beforeunload',()=>{tick();flush('unload')});setInterval(()=>{tick();flush()},30000);
+    // Resume-card deep link for non-video pages: "#studybuddy-resume=0.42" -> scroll to that
+    // fraction of the page once content has rendered. YouTube resumes via the native ?t= param
+    // instead (set by the dashboard), so this only applies elsewhere.
+    if(!isYoutube()){
+      const m=location.hash.match(/studybuddy-resume=([\d.]+)/);
+      if(m){
+        const target=Math.max(0,Math.min(1,parseFloat(m[1])));
+        let attempts=0;
+        const tryScroll=()=>{attempts++;const scrollable=document.documentElement.scrollHeight-window.innerHeight;if(scrollable>200||attempts>10){window.scrollTo({top:target*Math.max(1,scrollable),behavior:'smooth'});maxScrollProgress=target}else{setTimeout(tryScroll,300)}};
+        setTimeout(tryScroll,300)
+      }
     }
-  }
-  event('resource.opened',{resource_type:isYoutube()?'youtube':(articleType()||'web')});
-  if(isYoutube()){const attach=()=>{const v=document.querySelector('video');if(!v)return false;['play','pause','ended','seeking'].forEach(ev=>v.addEventListener(ev,()=>{tick();event(`video.${ev}`,{position:v.currentTime,duration:v.duration});if(ev!=='play')flush(ev)}));return true};if(!attach()){const mo=new MutationObserver(()=>{if(attach())mo.disconnect()});mo.observe(document.documentElement,{subtree:true,childList:true})}}
+    event('resource.opened',{resource_type:isYoutube()?'youtube':(articleType()||'web')});
+    if(isYoutube()){const attach=()=>{const v=document.querySelector('video');if(!v)return false;['play','pause','ended','seeking'].forEach(ev=>v.addEventListener(ev,()=>{tick();event(`video.${ev}`,{position:v.currentTime,duration:v.duration});if(ev!=='play')flush(ev)}));return true};if(!attach()){const mo=new MutationObserver(()=>{if(attach())mo.disconnect()});mo.observe(document.documentElement,{subtree:true,childList:true})}}
+  })();
   // Tiny opt-in selection action; it never reads form fields or passwords.
   document.addEventListener('mouseup',()=>{const s=window.getSelection()?.toString().trim();let old=document.getElementById('spartan-selection-action');old?.remove();if(!s||s.length<12||s.length>1500)return;const b=document.createElement('button');b.id='spartan-selection-action';b.textContent='✦ Ask StudyBuddy';b.onclick=async()=>{const r=await chrome.runtime.sendMessage({type:'ask',question:`Explain this in simple terms and connect it to my onboarding context:\n\n${s}`,mode:'explain'});b.textContent=r?.answer?String(r.answer).slice(0,160):'Open StudyBuddy';setTimeout(()=>b.remove(),7000)};document.body.appendChild(b);const rect=window.getSelection().getRangeAt(0).getBoundingClientRect();b.style.left=`${Math.min(innerWidth-180,Math.max(12,rect.left+scrollX))}px`;b.style.top=`${rect.bottom+scrollY+8}px`});
 })();

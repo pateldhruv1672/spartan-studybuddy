@@ -12,7 +12,7 @@ import { Avatar } from '../primitives/Avatar'
 /** Maps each server push to the cached queries it makes stale; pushes trigger refetches, never direct renders. */
 const INVALIDATIONS: Record<string, string[][]> = {
   onboarding_created: [['paths'], ['path']],
-  progress: [['path'], ['paths'], ['learner'], ['manager-analytics'], ['activity']],
+  progress: [['path'], ['paths'], ['learner'], ['manager-analytics'], ['activity'], ['leaderboard']],
   resource_session: [['resume'], ['learner']],
   agent_job: [['job'], ['path'], ['paths'], ['activity']],
   learning_event: [['activity'], ['learner']],
@@ -138,7 +138,7 @@ export function AppShell() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {paused && online && <span className="live-chip">Live updates paused</span>}
             <span className="system-chip">
-              {health === undefined ? 'Checking Spark…' : modelsOnline ? 'DGX Spark · models online' : 'App online · models warming'}
+              {health === undefined ? 'Checking ZGX Nano…' : modelsOnline ? 'ZGX Nano · models online' : 'App online · models warming'}
             </span>
             <button className="btn btn-secondary topbar-signout" style={{ padding: '8px 12px', minHeight: 34, fontSize: 12 }} onClick={logout}>
               Sign out

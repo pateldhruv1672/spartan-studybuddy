@@ -124,8 +124,12 @@ def register(*, email: str, password: str, display_name: str, role: str, org_id:
     if role not in ROLES:
         raise AuthError('Role must be manager or learner')
     isolate_manager = role == 'manager' and not settings.open_manager_signup
-    if role == 'learner' and not invited and not settings.open_manager_signup:
-        raise AuthError('Learners must use a valid team invitation')
+    # An invited learner already has an org_id from their invite. A learner signing up on their
+    # own (no invite) must at least say which organization they're joining -- the existence check
+    # a few lines down (raises 'Unknown organization') is what actually keeps this honest, this
+    # just stops a completely org-less account from being created.
+    if role == 'learner' and not invited and not org_id:
+        raise AuthError('Choose an organization to join, or use a team invitation')
     with db() as conn:
         existing = conn.execute('SELECT * FROM users WHERE lower(email)=?', (email,)).fetchall()
         if any(r['password_hash'] for r in existing):
@@ -154,6 +158,12 @@ def register(*, email: str, password: str, display_name: str, role: str, org_id:
                 'INSERT INTO users(id,org_id,display_name,email,role_title,avatar,password_hash,app_role) VALUES(?,?,?,?,?,?,?,?)',
                 (uid, org_id, display_name.strip(), email, (role_title or '').strip() or None, _avatar(display_name), hash_password(password), role),
             )
+        if role == 'learner' and not invited and org_id == settings.demo_org_id:
+            # Demo mode: a direct (uninvited) employee signup needs workspace membership too, not just the
+            # org, or they'd land on an empty "no workspace" screen and never get a path/leaderboard entry.
+            from .projects import get_or_create_demo_project
+            demo_project_id = get_or_create_demo_project(org_id, settings.demo_user_id)
+            conn.execute('INSERT INTO project_members(project_id,user_id,role) VALUES(?,?,?) ON CONFLICT DO NOTHING', (demo_project_id, uid, 'learner'))
         user = conn.execute('SELECT * FROM users WHERE id=?', (uid,)).fetchone()
     return {'token': issue_token(uid), 'user': _public(dict(user))}
 

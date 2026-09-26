@@ -179,6 +179,10 @@ export function PathDetailPage() {
   if (pathQuery.isError || !p) return <div className="view"><ErrorState message={errorMessage(pathQuery.error)} onRetry={() => pathQuery.refetch()} /></div>
 
   const status = new Map((p.progress_items || []).map((x) => [x.item_id, x.status]))
+  // First resource found for each topic, so a module item (e.g. "Git branching and pull requests")
+  // can show its own scouted video/article inline instead of only in the disconnected flat
+  // "Curated resources" list below -- see the topic/module_id reverse-mapping added in get_path().
+  const resourceByTopic = new Map((p.resources || []).filter((r) => r.topic).map((r) => [r.topic!, r]))
   const lockedSet = new Set(p.locked_items || [])
   const quizStatus = p.quiz_status || {}
   const firstOpen = [...(p.plan?.modules || []).flatMap((m) => m.items || []), ...(p.plan?.exercises || [])].find((i) => status.get(i.id) !== 'completed' && !lockedSet.has(i.id))
@@ -284,24 +288,50 @@ export function PathDetailPage() {
                   {(m.items || []).map((item) => {
                     const st = status.get(item.id)
                     const locked = lockedSet.has(item.id)
+                    const resource = item.topic ? resourceByTopic.get(item.topic) : undefined
+                    const resShot = resource?.metadata?.screenshot_base64
+                    const resThumb = resource ? youtubeThumbnail(resource.url) || (resShot ? `data:image/png;base64,${resShot}` : null) : null
                     return (
-                      <button key={item.id} className="row-btn" onClick={() => navigate(`/study/${p.id}/${item.id}`)} style={locked ? { opacity: 0.72 } : undefined}>
-                        <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                          <span
-                            aria-hidden="true"
-                            style={{ width: 26, height: 26, borderRadius: 8, display: 'grid', placeItems: 'center', fontSize: 12, background: st === 'completed' ? 'var(--success-tint)' : 'var(--surface-alt)' }}
-                          >
-                            {locked ? <LockIcon size={13} /> : st === 'completed' ? '✓' : st === 'in_progress' ? '…' : ''}
-                          </span>
-                          <span>
-                            <b style={{ fontSize: 14 }}>{item.title}</b>
-                            <span className="muted" style={{ display: 'block', fontSize: 12 }}>
-                              {KIND_LABEL[itemKind(item.type, false)]} · {item.minutes || 15} min · +{item.xp || 100} XP
+                      <div key={item.id} className="row-btn" style={{ ...(locked ? { opacity: 0.72 } : undefined), flexDirection: 'column', alignItems: 'stretch', gap: 8, cursor: 'default' }}>
+                        <button
+                          onClick={() => navigate(`/study/${p.id}/${item.id}`)}
+                          style={{ display: 'flex', justifyContent: 'space-between', width: '100%', background: 'none', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                        >
+                          <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                            <span
+                              aria-hidden="true"
+                              style={{ width: 26, height: 26, borderRadius: 8, display: 'grid', placeItems: 'center', fontSize: 12, background: st === 'completed' ? 'var(--success-tint)' : 'var(--surface-alt)' }}
+                            >
+                              {locked ? <LockIcon size={13} /> : st === 'completed' ? '✓' : st === 'in_progress' ? '…' : ''}
+                            </span>
+                            <span>
+                              <b style={{ fontSize: 14 }}>{item.title}</b>
+                              <span className="muted" style={{ display: 'block', fontSize: 12 }}>
+                                {KIND_LABEL[itemKind(item.type, false)]} · {item.minutes || 15} min · +{item.xp || 100} XP
+                              </span>
                             </span>
                           </span>
-                        </span>
-                        <span className="muted">{locked ? 'Locked' : st === 'completed' ? 'Done' : 'Open →'}</span>
-                      </button>
+                          <span className="muted">{locked ? 'Locked' : st === 'completed' ? 'Done' : 'Open →'}</span>
+                        </button>
+                        {resource && (
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              sendEvent({ user_id: userId, project_id: projectId ?? undefined, type: 'article.opened', resource_id: resource.url, context: { path_id: p.id } }).catch(() => {})
+                            }}
+                            style={{ display: 'flex', gap: 10, alignItems: 'center', textDecoration: 'none', color: 'inherit', paddingLeft: 38, marginTop: -2 }}
+                          >
+                            {resThumb && <img src={resThumb} alt="" style={{ width: 56, height: 32, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />}
+                            <span style={{ fontSize: 12, lineHeight: 1.4 }}>
+                              <Badge tone="info">{resource.resource_type || 'resource'}</Badge>{' '}
+                              <span className="muted">{resource.title}</span>
+                            </span>
+                          </a>
+                        )}
+                      </div>
                     )
                   })}
                 </div>

@@ -38,6 +38,8 @@ import type {
   Role,
   RoleMatch,
   SearchResponse,
+  ServingProfileResult,
+  TrafficSummary,
   SourceRecord,
   TeamMember,
 } from './types'
@@ -56,7 +58,7 @@ export const getQuizHint = (attemptId: string, questionId: string, userId: strin
   api<{ level: number; hint: string }>(`/api/onboarding/quiz/attempts/${attemptId}/questions/${questionId}/hint`, { method: 'POST', body: j({ user_id: userId }) })
 
 /* ---------- Auth ---------- */
-export const register = (body: { email: string; password: string; display_name: string; role: 'manager' | 'learner'; role_title?: string }) =>
+export const register = (body: { email: string; password: string; display_name: string; role: 'manager' | 'learner'; role_title?: string; org_id?: string }) =>
   api<AuthResponse>('/api/auth/register', { method: 'POST', body: j(body) })
 export const login = (body: { email: string; password: string }) => api<AuthResponse>('/api/auth/login', { method: 'POST', body: j(body) })
 export const acceptInviteWithPassword = (body: { token: string; display_name: string; password: string; email?: string | null }) =>
@@ -210,6 +212,8 @@ export const getLearnerSnapshot = (userId: string, projectId: string) => api<Lea
 export const getAdminStats = (orgId: string) => api<AdminStats>(`/api/admin/stats?org_id=${encodeURIComponent(orgId)}`)
 export const getTraces = (limit = 100) => api<AgentTrace[]>(`/api/admin/traces?limit=${limit}`)
 export const getCompetition = () => api<CompetitionResult>('/api/admin/competition')
+export const getServingProfiles = () => api<ServingProfileResult>('/api/admin/serving-profile')
+export const getTraffic = (limit = 200) => api<TrafficSummary>('/api/admin/traffic?limit=' + limit)
 
 /* ---------- Agent jobs ---------- */
 export const getAgentJob = (jobId: string) => api<AgentJob>(`/api/agent/jobs/${jobId}`)

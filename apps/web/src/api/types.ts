@@ -231,7 +231,7 @@ export interface OnboardingPath {
   title?: string
   created_at?: string
   progress_items?: Array<{ item_id: string; status: string; progress: number }>
-  resources?: Array<{ title: string; url: string; resource_type?: string; source?: string; rationale?: string; metadata?: { screenshot_base64?: string; [key: string]: unknown } }>
+  resources?: Array<{ title: string; url: string; resource_type?: string; source?: string; rationale?: string; topic?: string; metadata?: { screenshot_base64?: string; [key: string]: unknown } }>
   resource_job?: AgentJob | null
   /** Graph-grounded paths: per quiz item state, and every item locked behind an unpassed quiz. */
   quiz_status?: Record<string, QuizStatus>
@@ -339,6 +339,10 @@ export interface CompetitionSummary {
     answer_leak_reduction_pct?: number
     base_question_rate?: number
     tuned_question_rate?: number
+    base_guidance_marker_rate?: number
+    tuned_guidance_marker_rate?: number
+    base_concise_rate?: number
+    tuned_concise_rate?: number
   }
   serving_base_vs_tuned?: {
     base_ttft_p50_s?: number
@@ -365,6 +369,42 @@ export interface CompetitionResult extends CompetitionSummary {
   available?: boolean
   message?: string
   summary?: CompetitionSummary
+}
+
+export interface ServingProfile {
+  method: string
+  label: string
+  artifact?: string | null
+  profile?: string | null
+  model?: string | null
+  requests?: number | null
+  concurrency?: number | null
+  ttft_p50_s?: number | null
+  ttft_p95_s?: number | null
+  decode_tok_s_p50?: number | null
+  aggregate_output_tok_s?: number | null
+  draft_acceptance_rate?: number | null
+  mean_acceptance_length?: number | null
+  recommended: boolean
+}
+
+export interface TrafficSummary {
+  generated_at: string
+  sample_size: number
+  success_rate?: number | null
+  latency_p50_ms?: number | null
+  latency_p95_ms?: number | null
+  ttft_p50_ms?: number | null
+  tokens_in: number
+  tokens_out: number
+  routes: string[]
+}
+
+export interface ServingProfileResult {
+  available: boolean
+  selected_method?: string | null
+  profiles: ServingProfile[]
+  message?: string
 }
 
 export interface TeamMember {
@@ -772,4 +812,5 @@ export interface ProjectAnalytics {
   learners: LearnerAnalytics[]
   quizzes: QuizAnalytics[]
   resources: ResourceAnalytics[]
+  last_activity: Record<string, string>
 }

@@ -18,6 +18,7 @@ import { AssistantPage } from '../pages/AssistantPage'
 import { LeaderboardPage } from '../pages/LeaderboardPage'
 import { AnalyticsPage } from '../pages/AnalyticsPage'
 import { EngineeringLabPage } from '../pages/EngineeringLabPage'
+import { ArchitecturePage } from '../pages/ArchitecturePage'
 import { TeamPage } from '../pages/TeamPage'
 import { ProgressPage } from '../pages/ProgressPage'
 import { IntegrationsPage } from '../pages/IntegrationsPage'
@@ -53,6 +54,7 @@ export function AppRoutes() {
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/architecture" element={<ArchitecturePage />} />
           <Route path="/repository" element={<RepositoryMapPage />} />
           <Route path="/kit" element={<KnowledgePackPage />} />
           <Route path="/paths" element={<PathsPage />} />

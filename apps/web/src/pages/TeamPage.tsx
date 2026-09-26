@@ -26,7 +26,9 @@ export function TeamPage() {
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [selected, setSelected] = useState<TeamMember | null>(null)
 
-  const team = useQuery({ queryKey: ['team', orgId], queryFn: () => listTeam(orgId) })
+  // Polling (not just default staleTime) so a Manager already on this page sees a directly-signed-up
+  // Employee without reloading -- the backend has no org-wide push channel, only per-user websocket sends.
+  const team = useQuery({ queryKey: ['team', orgId], queryFn: () => listTeam(orgId), refetchInterval: 15000 })
   const workspaces = useQuery({ queryKey: ['projects', orgId], queryFn: () => listProjects(orgId) })
   const live = selected ? team.data?.find((m) => m.id === selected.id) ?? selected : null
   const invitations = useQuery({
@@ -51,6 +53,7 @@ export function TeamPage() {
     onError: (e) => toast(errorMessage(e)),
   })
   const { paths } = usePathDetails()
+  const workspaceName = useMemo(() => new Map((workspaces.data || []).map((w) => [w.id, w.name])), [workspaces.data])
 
   const progressByUser = useMemo(() => {
     const map = new Map<string, Array<{ role: string; progress: number; xp: number }>>()
@@ -119,7 +122,7 @@ export function TeamPage() {
                         </span>
                       </span>
                       <span className="muted" style={{ fontSize: 12 }}>
-                        {m.role_title || 'Engineer'} · {m.email || 'no email'}
+                        {m.role_title || 'Engineer'} · {m.email || 'no email'} · {(m.workspace_ids || []).map((id) => workspaceName.get(id)).filter(Boolean).join(', ') || 'No workspace'}
                       </span>
                     </span>
                   </span>
@@ -130,8 +133,14 @@ export function TeamPage() {
                         <ProgressBar value={best} />
                       </>
                     ) : (
-                      <span className="badge badge-neutral">No path yet</span>
+                      <span className="badge badge-neutral">Not started</span>
                     )}
+                  </span>
+                  <span className={`badge ${best >= 1 ? 'badge-success' : rows.length ? 'badge-warning' : 'badge-neutral'}`} style={{ width: 92, flex: '0 0 92px', textAlign: 'center' }}>
+                    {best >= 1 ? 'Completed' : rows.length ? 'In progress' : 'Not started'}
+                  </span>
+                  <span className="muted" style={{ width: 84, flex: '0 0 84px', fontSize: 11, textAlign: 'right' }}>
+                    {m.created_at ? new Date(String(m.created_at)).toLocaleDateString() : '—'}
                   </span>
                 </button>
               )

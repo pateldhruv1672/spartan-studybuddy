@@ -6,7 +6,16 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / '.env', override=False)
-DATA_DIR = Path(os.getenv('STUDYBUDDY_DATA_DIR', ROOT / 'data')).expanduser().resolve()
+# Resolved against ROOT, not the process's cwd: STUDYBUDDY_DATA_DIR in .env is the relative value
+# "./data", and Path(...).resolve() on a relative path resolves against cwd -- so launching the
+# backend via `cd backend && python run.py` (cwd=backend/) versus from the repo root gave TWO
+# different absolute data dirs, each with its own persisted data/auth_secret file. Every login
+# token is HMAC-signed with whichever secret was active at issue time, so any restart from a
+# different cwd silently invalidated every existing session (observed directly: a real, correctly
+# non-expired token failed signature verification after a cwd-different restart, breaking both the
+# job-notification WebSocket and every resource-tracking POST at once). ROOT/<absolute path> is a
+# no-op in pathlib (the right side wins when absolute), so an explicit absolute override still works.
+DATA_DIR = (ROOT / os.getenv('STUDYBUDDY_DATA_DIR', 'data')).expanduser().resolve()
 for p in (DATA_DIR, DATA_DIR/'repos', DATA_DIR/'uploads', DATA_DIR/'cache', DATA_DIR/'exports'):
     p.mkdir(parents=True, exist_ok=True)
 

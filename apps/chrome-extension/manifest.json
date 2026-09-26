@@ -3,7 +3,7 @@
   "name": "Spartan StudyBuddy Companion",
   "version": "2.0.0",
   "description": "Private learning memory, progress tracking and StudyBuddy actions for engineering onboarding.",
-  "permissions": ["storage", "activeTab", "tabs", "scripting", "notifications"],
+  "permissions": ["storage", "activeTab", "tabs", "scripting", "notifications", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {"service_worker": "service-worker.js", "type": "module"},
   "icons": {"128": "icon128.png"},

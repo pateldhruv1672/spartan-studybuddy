@@ -145,7 +145,11 @@ def deterministic_candidates(project_id: str, module: dict[str, Any], seed: str)
         out += gen_concepts(ctx, 2)
     from .reasoning_questions import generate
     reasoning=generate(ctx)
-    conceptual=[q for q in out if q.gen == 'concept' and q.difficulty >= 2]
+    concept_qs=[q for q in out if q.gen == 'concept']
+    # Prefer harder concept questions, but every catalog concept used as a last-resort baseline (line 143)
+    # is difficulty 1 -- filtering to >=2 only would silently discard the very fallback meant to guarantee
+    # a non-empty quiz, shipping zero questions on thin sections instead of the promised generic baseline.
+    conceptual=[q for q in concept_qs if q.difficulty >= 2] or concept_qs
     return reasoning + conceptual
 
 
@@ -194,6 +198,66 @@ async def llm_extra_questions(project_id: str, module: dict[str, Any], n: int = 
     return out
 
 
+async def llm_questions_from_module(project_id: str, module: dict[str, Any], n: int = 5) -> list[QSpec]:
+    """No-repo equivalent of llm_extra_questions(): a no-repo/LLM-engine onboarding path has no
+    knowledge graph to pull indexed evidence chunks from (require_view() would just raise), so this
+    writes questions from the module's own curriculum text -- title, outcome, and its items' own
+    titles/why fields -- instead. Same conceptual-only, multiple-choice-only system prompt as the
+    graph path; same QSpec shape, so storage and the quiz-taking UI need no changes."""
+    items_desc = '\n'.join(f"- {it.get('title', '')}: {it.get('why') or ''}" for it in module.get('items', []) if it.get('type') != 'quiz')
+    context = f"Module: {module.get('title')}\nOutcome: {module.get('outcome')}\nCovers:\n{items_desc}"
+    gen = await router.json(
+        system='You write moderately difficult conceptual engineering questions testing understanding of a subject -- every question is multiple-choice, never asking the learner to write, complete or fix any code. Each question needs 4 distinct plausible choices, exactly one correct, and a short explanation. Do not put the answer in the question. Return {"questions":[{"prompt","choices":[4 strings],"answer_index","explanation"}]}.',
+        user=f'Write {n} conceptual review questions for this onboarding module.\n{context}', tier='instruct', fallback={'questions': []}, agent='quiz_writer_norepo', project_id=project_id)
+    out: list[QSpec] = []
+    for q in (gen.get('questions') or [])[:n]:
+        try:
+            choices, ai = [str(x).strip() for x in q['choices']], int(q['answer_index'])
+            prompt = str(q['prompt']).strip()
+            if len(choices) != 4 or len(set(choices)) != 4 or not (0 <= ai < 4) or choices[ai].lower() in prompt.lower():
+                continue
+            rng = random.Random(prompt)
+            cs = [{'id': f'c{k}', 'text': t} for k, t in enumerate(sorted(choices, key=lambda _t: rng.random()))]
+            ans = [next(c['id'] for c in cs if c['text'] == choices[ai])]
+            out.append(QSpec('mcq', prompt, cs, ans, str(q.get('explanation', ''))[:400], [], None, 2, 'llm-generated', 1.0, 'llm'))
+        except Exception:
+            continue
+    return out
+
+
+async def generate_quizzes_no_repo(path_id: str, force: bool = False) -> list[dict[str, Any]]:
+    """generate_quizzes()'s storage loop, minus everything that needs a graph (deterministic_candidates,
+    llm_extra_questions -- both call require_view()). Kept as a separate function rather than
+    branching generate_quizzes() itself, so the working graph-quiz path is never at risk of
+    regressing from this change."""
+    with db() as conn:
+        plan, project_id = _plan(conn, path_id)
+    made = []
+    for m, qi in quiz_items(plan):
+        draw = int(qi.get('quiz', {}).get('question_count', 5))
+        bank = await llm_questions_from_module(project_id, m, draw)
+        if not bank:
+            # No graph fallback exists here (that's the whole point of the no-repo path), so an empty
+            # bank means the model was unavailable -- skip rather than persist an unusable quiz stub;
+            # a later retry (augment_with_llm or a fresh generate call) can fill it in.
+            continue
+        qid = str(uuid.uuid5(uuid.NAMESPACE_URL, f'{path_id}|{qi["id"]}'))
+        with db() as conn:
+            if conn.execute('SELECT 1 FROM quizzes WHERE id=?', (qid,)).fetchone():
+                if not force:
+                    continue
+                if conn.execute('SELECT 1 FROM quiz_attempts WHERE quiz_id=? LIMIT 1', (qid,)).fetchone():
+                    raise ValueError('Cannot replace a quiz with learner history. Append verified questions instead.')
+                conn.execute('DELETE FROM quizzes WHERE id=?', (qid,))
+            conn.execute('INSERT INTO quizzes(id,project_id,path_id,module_id,item_id,title,pass_threshold,draw_count,engine) VALUES(?,?,?,?,?,?,?,?,?)',
+                         (qid, project_id, path_id, m['id'], qi['id'], f"Quiz: {m['title']}", float(qi.get('quiz', {}).get('pass_threshold', 0.7)), min(draw, max(len(bank), 1)), 'llm-only'))
+            conn.executemany('INSERT INTO quiz_questions(id,quiz_id,ordinal,qtype,prompt,choices_json,answer_json,explanation,evidence_json,concept,difficulty,source,weight) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                             [(str(uuid.uuid4()), qid, k, q.qtype, q.prompt, json.dumps(q.choices), json.dumps(q.answer), q.explanation, json.dumps(q.evidence), q.concept, q.difficulty, q.source, q.weight)
+                              for k, q in enumerate(bank)])
+        made.append({'item_id': qi['id'], 'questions': len(bank), 'engine': 'llm-only'})
+    return made
+
+
 async def build_bank(project_id: str, module: dict[str, Any], draw: int, seed: str, use_llm: bool = True) -> list[QSpec]:
     rng = rng_for(seed)
     cands = deterministic_candidates(project_id, module, seed)
@@ -218,6 +282,11 @@ async def generate_quizzes(path_id: str, use_llm: bool = False, force: bool = Fa
     for m, qi in quiz_items(plan):
         draw = int(qi.get('quiz', {}).get('question_count', 5))
         bank = await build_bank(project_id, m, draw, f'{project_id}|{path_id}|{m["id"]}', use_llm)
+        if not bank:
+            # Never persist an unusable quiz -- start_attempt would return a 200 with questions: [],
+            # which looks broken rather than failing clearly. Skip it; the item just has no quiz yet
+            # (start_attempt/quiz_info already 404 cleanly for a module with no quizzes row).
+            continue
         engine = 'hybrid' if any(q.source == 'llm-verified' for q in bank) else 'deterministic'
         qid = str(uuid.uuid5(uuid.NAMESPACE_URL, f'{path_id}|{qi["id"]}'))
         with db() as conn:
@@ -565,6 +634,15 @@ def analytics(project_id: str) -> dict[str, Any]:
                                     COUNT(*) AS sessions, COUNT(*) FILTER (WHERE progress>=1) AS completed, AVG(progress) AS avg_progress
                                     FROM resource_sessions WHERE project_id=? GROUP BY resource_url,resource_title,resource_type
                                     ORDER BY sessions DESC LIMIT 50''', (project_id,)).fetchall()
+        # Last real activity per user, across every signal the app already records -- not a new tracking
+        # table, just the max timestamp already sitting in three existing tables for this workspace.
+        last_activity = conn.execute('''SELECT user_id,MAX(ts) AS ts FROM (
+            SELECT a.user_id,a.submitted_at AS ts FROM quiz_attempts a JOIN quizzes q ON q.id=a.quiz_id WHERE q.project_id=? AND a.submitted_at IS NOT NULL
+            UNION ALL
+            SELECT pp.user_id,pp.updated_at AS ts FROM path_progress pp JOIN onboarding_paths p ON p.id=pp.path_id WHERE p.project_id=?
+            UNION ALL
+            SELECT user_id,last_seen_at AS ts FROM resource_sessions WHERE project_id=?
+        ) x GROUP BY user_id''', (project_id, project_id, project_id)).fetchall()
     m_by: dict[str, list[dict[str, Any]]] = {}
     for r in mastery:
         m_by.setdefault(r['user_id'], []).append({'topic': r['topic'], 'score': round(r['score'], 3)})
@@ -574,7 +652,8 @@ def analytics(project_id: str) -> dict[str, Any]:
                          'avg_score': round(r['avg_score'] or 0, 3)} for r in quizzes],
             'resources': [{'url': r['resource_url'], 'title': r['title'], 'resource_type': r['resource_type'], 'sessions': r['sessions'],
                            'completed': r['completed'], 'completion_rate': round((r['completed'] / r['sessions']) if r['sessions'] else 0, 3),
-                           'avg_progress': round(r['avg_progress'] or 0, 3)} for r in resources]}
+                           'avg_progress': round(r['avg_progress'] or 0, 3)} for r in resources],
+            'last_activity': {r['user_id']: r['ts'].isoformat() for r in last_activity if r['ts']}}
 
 
 def list_achievements(user_id: str | None = None, project_id: str | None = None) -> list[dict[str, Any]]:

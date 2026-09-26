@@ -2,16 +2,13 @@
 
 **Private codebase → structured onboarding academy → locally fine-tuned Socratic engineering tutor.**
 
-🤗 **Fine-tuned model on Hugging Face:** [`dhruv1672/spartan-studybuddy-qwen3.8-27b-nvfp4`](https://huggingface.co/dhruv1672/spartan-studybuddy-qwen3.8-27b-nvfp4) — Qwen3.8-27B, LoRA-tuned for Socratic tutoring, NVFP4-quantized, with native MTP speculative decoding. Full training/quantization writeup and measured benchmarks in [Model training](#qwen38-27b-socratic-fine-tune-progress-architecture-and-results-2026-09-24) below.
-
-## Elevator pitch
 
 A new hire's first weeks are usually the same private tax paid over and over: read scattered docs, ask the same five Slack questions every engineer asks, get pointed at a wiki page from two reorgs ago. Spartan StudyBuddy turns a company's own repositories, documents and internal knowledge into a role-specific onboarding academy, generated and answered entirely by models running on the team's own hardware — nothing about the private codebase ever leaves the machine.
 
 A manager connects a repository (or a Drive folder, or a handful of URLs); the system indexes it, builds a knowledge graph, and generates a week-by-week curriculum for a chosen role. Each concept in that curriculum is paired with a real public resource — a specific YouTube video, a specific doc page, a specific blog post — found and verified by a browser-automation agent that runs on the *learner's own machine*, not the GPU box, so scouting the open web never competes with the model inference budget and private code is never sent to a public search. The learner studies through direct grounded Q&A, plain-language explanations, or Socratic guidance that teaches instead of handing over the answer, all backed by citations into the actual private source. Progress, quiz scores, XP and a live leaderboard turn onboarding into something a manager can actually see happening, in real time, across a team.
 
 Everything — retrieval, routing, the tutor itself — runs on locally-served, fine-tuned open models. No onboarding conversation, and no line of private code, ever has to touch a third-party API.
-
+🤗 **Fine-tuned model on Hugging Face:** [`dhruv1672/spartan-studybuddy-qwen3.8-27b-nvfp4`](https://huggingface.co/dhruv1672/spartan-studybuddy-qwen3.8-27b-nvfp4) — Qwen3.8-27B, LoRA-tuned for Socratic tutoring, NVFP4-quantized, with native MTP speculative decoding. Full training/quantization writeup and measured benchmarks in [Model training](#qwen38-27b-socratic-fine-tune-progress-architecture-and-results-2026-09-24) below.
 ## What is in this repository
 
 - Apple-inspired web control center served by FastAPI.
@@ -438,6 +435,3 @@ make test
 
 The smoke suite starts a real `pgvector/pgvector` PostgreSQL container, initializes the schema, validates hybrid full-text + vector search, direct/Socratic routing, gamified progress and resume memory, validates both extension runtime contracts, and then runs JS/Python syntax checks.
 
-## Current limitations
-
-Read `COMPLETION_REPORT.md` before demo day. The repository is hackathon-grade, not production SaaS: authentication is demo-level, Drive/GitHub integrations are token based, multi-language code graphs are not yet full Tree-sitter/call-graph analysis, and the 32B fine-tune/speculative profiles still need to be executed and benchmarked on your physical DGX Spark. PostgreSQL + pgvector is now the only application database.

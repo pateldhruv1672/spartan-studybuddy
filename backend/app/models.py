@@ -11,9 +11,19 @@ class LearningEventIn(BaseModel):
 class ProjectCreateRequest(BaseModel):
     org_id: str='demo-company'; user_id: str='demo-spartan'; name: str; description: str=''
 class InviteRequest(BaseModel):
-    org_id: str='demo-company'; invited_by: str='demo-spartan'; email: str|None=None; role_title: str='Engineer'
+    org_id: str='demo-company'; invited_by: str='demo-spartan'; email: str|None=None; role_title: str='Engineer'; project_id: str|None=None
 class InviteAcceptRequest(BaseModel):
     token: str; display_name: str; email: str|None=None; role_title: str='Engineer'
+class RegisterRequest(BaseModel):
+    email: str; password: str; display_name: str; role: Literal['manager','learner']='learner'; org_id: str='demo-company'; role_title: str|None=None
+class AssignMemberRequest(BaseModel):
+    user_id: str; role_title: str|None=Field(default=None,max_length=80)
+class ProfileUpdateRequest(BaseModel):
+    display_name: str|None=Field(default=None,max_length=80); role_title: str|None=Field(default=None,max_length=80)
+class LoginRequest(BaseModel):
+    email: str; password: str
+class InviteSignupRequest(BaseModel):
+    token: str; display_name: str; password: str; email: str|None=None
 class SourceIngestRequest(BaseModel):
     user_id: str='demo-spartan'; project_id: str; uri: str; kind: Literal['auto','github','web','gdrive']='auto'
     name: str|None=None; branch: str|None=None; access_token: str|None=None
@@ -30,6 +40,7 @@ class AskRequest(BaseModel):
 class OnboardingRequest(BaseModel):
     user_id: str='demo-spartan'; project_id: str; target_role: str; level: Literal['junior','mid','senior']='junior'
     weeks: int=Field(default=4,ge=1,le=16); hours_per_week: int=Field(default=8,ge=1,le=40); background: str=''; is_public: bool=False
+    engine: Literal['graph','llm']|None=None; role_id: str|None=None; quiz_questions: int=Field(default=5,ge=3,le=8); scope: list[str]|None=None
 class ProgressRequest(BaseModel):
     user_id: str='demo-spartan'; item_id: str; status: Literal['not_started','in_progress','completed']; progress: float=Field(default=0,ge=0,le=1); score: float|None=None
 class JoinPathRequest(BaseModel):

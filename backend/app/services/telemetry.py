@@ -1,9 +1,10 @@
 from __future__ import annotations
-import json,time,uuid
+import hashlib,json,time,uuid
 from contextlib import contextmanager
 from typing import Any
 from prometheus_client import Counter,Histogram,Gauge,generate_latest,CONTENT_TYPE_LATEST
 from ..db import db
+from ..config import settings
 
 MODEL_REQUESTS=Counter('studybuddy_model_requests_total','Model requests',['route','success'])
 MODEL_LATENCY=Histogram('studybuddy_model_latency_seconds','Model end-to-end latency',['route'],buckets=(.1,.25,.5,1,2,4,8,16,32,64,128))
@@ -18,15 +19,19 @@ def metrics_payload(): return generate_latest(), CONTENT_TYPE_LATEST
 
 def trace(*,user_id:str|None,project_id:str|None,thread_id:str|None,agent:str,route:str|None,model:str|None,prompt:str,response:str,retrieved:list|None,latency_ms:float|None,ttft_ms:float|None,input_tokens:int|None,output_tokens:int|None,tps:float|None,success:bool=True,metadata:dict|None=None)->str:
     tid=str(uuid.uuid4())
+    prompt_hash=hashlib.sha256(prompt.encode()).hexdigest()
+    response_hash=hashlib.sha256(response.encode()).hexdigest()
+    prompt_preview=prompt[:4000] if settings.trace_content else ''
+    response_preview=response[:6000] if settings.trace_content else ''
+    safe_meta={**(metadata or {}),'prompt_sha256':prompt_hash,'response_sha256':response_hash,'content_stored':settings.trace_content}
     with db() as conn:
         conn.execute('''INSERT INTO agent_traces(id,user_id,project_id,thread_id,agent,route,model,prompt_preview,response_preview,retrieved_json,latency_ms,ttft_ms,input_tokens,output_tokens,tokens_per_second,success,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',(
-            tid,user_id,project_id,thread_id,agent,route,model,prompt[:4000],response[:6000],json.dumps(retrieved or []),latency_ms,ttft_ms,input_tokens,output_tokens,tps,int(success),json.dumps(metadata or {})
+            tid,user_id,project_id,thread_id,agent,route,model,prompt_preview,response_preview,json.dumps(retrieved or []),latency_ms,ttft_ms,input_tokens,output_tokens,tps,int(success),json.dumps(safe_meta)
         ))
     # Optional hosted trace export. It is OFF unless the operator explicitly supplies
     # LANGSMITH_API_KEY; the local PostgreSQL trace store is always the source of truth.
     try:
-        from ..config import settings
-        if settings.langsmith_api_key:
+        if settings.langsmith_api_key and settings.trace_content:
             from langsmith import Client
             Client(api_key=settings.langsmith_api_key).create_run(
                 name=f"studybuddy:{agent}", run_type="chain",
@@ -41,8 +46,11 @@ def trace(*,user_id:str|None,project_id:str|None,thread_id:str|None,agent:str,ro
         print(f"LangSmith export skipped: {exc}")
     return tid
 
-def recent_traces(limit:int=100)->list[dict[str,Any]]:
-    with db() as conn: rows=conn.execute('SELECT * FROM agent_traces ORDER BY created_at DESC LIMIT ?',(limit,)).fetchall()
+def recent_traces(limit:int=100,org_id:str|None=None)->list[dict[str,Any]]:
+    with db() as conn:
+        rows=conn.execute('''SELECT t.* FROM agent_traces t LEFT JOIN projects p ON p.id=t.project_id
+                             LEFT JOIN users u ON u.id=t.user_id WHERE COALESCE(p.org_id,u.org_id)=?
+                             ORDER BY t.created_at DESC LIMIT ?''',(org_id,limit)).fetchall() if org_id else []
     out=[]
     for r in rows:
         d=dict(r); d['retrieved']=json.loads(d.pop('retrieved_json') or '[]'); d['metadata']=json.loads(d.pop('metadata_json') or '{}'); out.append(d)

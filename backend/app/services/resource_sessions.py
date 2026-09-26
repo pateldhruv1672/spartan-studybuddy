@@ -13,13 +13,15 @@ async def upsert_session(user_id:str,project_id:str|None,url:str,title:str,resou
         merged=list(dict.fromkeys((json.loads(old['concepts_json']) if old else [])+concepts))[:20]
         conn.execute('''INSERT INTO resource_sessions(id,user_id,project_id,resource_url,resource_title,resource_type,seconds_active,progress,last_position,duration,summary,concepts_json,checkpoint_json,last_seen_at)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
-          ON CONFLICT(id) DO UPDATE SET seconds_active=excluded.seconds_active,progress=MAX(resource_sessions.progress,excluded.progress),last_position=excluded.last_position,duration=COALESCE(excluded.duration,resource_sessions.duration),resource_title=excluded.resource_title,concepts_json=excluded.concepts_json,last_seen_at=CURRENT_TIMESTAMP''',
+          ON CONFLICT(id) DO UPDATE SET seconds_active=excluded.seconds_active,progress=GREATEST(resource_sessions.progress,excluded.progress),last_position=excluded.last_position,duration=COALESCE(excluded.duration,resource_sessions.duration),resource_title=excluded.resource_title,concepts_json=excluded.concepts_json,last_seen_at=CURRENT_TIMESTAMP''',
           (sid,user_id,project_id,url,title,resource_type,total_seconds,max(0,min(1,progress)),last_position,duration,summary,json.dumps(merged),json.dumps(checkpoint)))
     # Create a concise resume brief once a learner has meaningful progress. Visible text is intentionally truncated.
     if progress>.08 and (not summary or progress>.85):
         text=(visible_text or '')[:7000]
         prompt=f'Resource: {title}\nType: {resource_type}\nProgress: {progress:.0%}\nConcepts observed: {merged}\nVisible/transcript excerpt:\n{text}'
-        result=await router.json(system='Create a private learning-resume card. Return JSON: summary (2-4 sentences), concepts (array), questions (2 short recall questions). Do not claim the learner mastered material merely because it was viewed.',user=prompt,tier='instruct',fallback={'summary':f'You were working through {title}.','concepts':merged,'questions':['What was the central idea you encountered?','What would you like clarified before continuing?']})
+        # 'light' -> the same 8B model already deployed for browser-use: this is a short, cheap
+        # summarization task, not Socratic tutoring, so it doesn't need the heavier tuned model.
+        result=await router.json(system='Create a private learning-resume card. Return JSON: summary (2-4 sentences), concepts (array), questions (2 short recall questions). Do not claim the learner mastered material merely because it was viewed.',user=prompt,tier='light',fallback={'summary':f'You were working through {title}.','concepts':merged,'questions':['What was the central idea you encountered?','What would you like clarified before continuing?']})
         summary=str(result.get('summary') or '')[:3000]; checkpoint=result.get('questions') or []
         merged=list(dict.fromkeys(merged+(result.get('concepts') or [])))[:20]
         with db() as conn: conn.execute('UPDATE resource_sessions SET summary=?,concepts_json=?,checkpoint_json=? WHERE id=?',(summary,json.dumps(merged),json.dumps(checkpoint[:4]),sid))

@@ -6,12 +6,16 @@ scrape_configs:
   - job_name: studybuddy-backend
     metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8000"]
-  - job_name: vllm-teacher
+      - targets: ["127.0.0.1:8000"]
+  - job_name: vllm-mtp
     metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8101"]
+      - targets: ["127.0.0.1:8080"]
+  - job_name: vllm-light8b
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["127.0.0.1:8082"]
   - job_name: vllm-embeddings
     metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8105"]
+      - targets: ["127.0.0.1:8105"]

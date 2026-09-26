@@ -1,0 +1,131 @@
+/usr/local/lib/python3.12/dist-packages/modelopt/torch/__init__.py:36: UserWarning: transformers version 5.14.1 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+ModelOpt save/restore enabled for `transformers` library.
+ModelOpt save/restore enabled for `peft` library.
+Registered <class 'transformers.models.qwen3_5.modeling_qwen3_5.Qwen3_5VisionAttention'> to _QuantAttention for KV Cache quantization
+Registered <class 'transformers.models.qwen3_5.modeling_qwen3_5.Qwen3_5Attention'> to _QuantAttention for KV Cache quantization
+Inserted 2097 quantizers
+Restored ModelOpt state from artifacts/socratic-nvfp4-quantized-final.broken-conv1d/modelopt_state.pth
+Loading weights:   0%|          | 0/3388 [00:00<?, ?it/s]Loading weights:   0%|          | 1/3388 [00:15<14:51:20, 15.79s/it]Loading weights:   0%|          | 2/3388 [00:32<15:13:17, 16.18s/it]Loading weights:   1%|          | 29/3388 [00:32<38:38,  1.45it/s]  Loading weights:   1%|▏         | 43/3388 [00:32<23:10,  2.41it/s]Loading weights:   2%|▏         | 63/3388 [00:33<12:43,  4.36it/s]Loading weights:   2%|▏         | 72/3388 [00:33<10:09,  5.44it/s]Loading weights:   2%|▏         | 80/3388 [00:33<08:28,  6.50it/s]Loading weights:   3%|▎         | 108/3388 [00:34<04:17, 12.71it/s]Loading weights:   4%|▎         | 119/3388 [00:34<03:46, 14.45it/s]Loading weights:   4%|▍         | 131/3388 [00:34<03:11, 17.02it/s]Loading weights:   4%|▍         | 136/3388 [00:35<03:08, 17.24it/s]Loading weights:   4%|▍         | 143/3388 [00:35<02:38, 20.41it/s]Loading weights:   5%|▍         | 153/3388 [00:35<02:25, 22.27it/s]Loading weights:   5%|▍         | 158/3388 [00:35<02:46, 19.35it/s]Loading weights:   6%|▌         | 195/3388 [00:36<01:06, 47.67it/s]Loading weights:   6%|▌         | 204/3388 [00:36<01:10, 45.24it/s]Loading weights:   6%|▋         | 212/3388 [00:36<01:19, 40.06it/s]Loading weights:   6%|▋         | 218/3388 [00:36<01:33, 33.83it/s]Loading weights:   7%|▋         | 223/3388 [00:37<01:52, 28.11it/s]Loading weights:   7%|▋         | 228/3388 [00:38<03:06, 16.98it/s]Loading weights:   8%|▊         | 262/3388 [00:38<01:19, 39.32it/s]Loading weights:   8%|▊         | 268/3388 [00:38<01:30, 34.30it/s]Loading weights:   9%|▊         | 292/3388 [00:38<01:00, 50.92it/s]Loading weights:   9%|▉         | 300/3388 [00:38<00:56, 54.23it/s]Loading weights:   9%|▉         | 308/3388 [00:39<01:29, 34.27it/s]Loading weights:   9%|▉         | 314/3388 [00:39<01:41, 30.18it/s]Loading weights:  10%|▉         | 323/3388 [00:39<01:23, 36.88it/s]Loading weights:  10%|▉         | 329/3388 [00:40<01:36, 31.64it/s]Loading weights:  10%|▉         | 334/3388 [00:40<01:55, 26.46it/s]Loading weights:  10%|▉         | 338/3388 [00:40<02:22, 21.44it/s]Loading weights:  11%|█         | 371/3388 [00:41<01:01, 48.99it/s]Loading weights:  11%|█▏        | 383/3388 [00:41<00:52, 57.66it/s]Loading weights:  12%|█▏        | 391/3388 [00:41<01:25, 34.90it/s]Loading weights:  12%|█▏        | 398/3388 [00:42<01:31, 32.76it/s]Loading weights:  12%|█▏        | 420/3388 [00:42<01:04, 46.27it/s]Loading weights:  13%|█▎        | 439/3388 [00:42<00:54, 53.68it/s]Loading weights:  13%|█▎        | 446/3388 [00:42<01:06, 44.40it/s]Loading weights:  14%|█▎        | 464/3388 [00:43<00:52, 55.88it/s]Loading weights:  14%|█▍        | 471/3388 [00:43<00:53, 55.04it/s]Loading weights:  14%|█▍        | 478/3388 [00:43<00:50, 57.06it/s]Loading weights:  14%|█▍        | 485/3388 [00:43<01:32, 31.28it/s]Loading weights:  14%|█▍        | 490/3388 [00:44<01:47, 27.08it/s]Loading weights:  15%|█▍        | 497/3388 [00:44<01:51, 25.95it/s]Loading weights:  15%|█▍        | 502/3388 [00:44<02:06, 22.87it/s]Loading weights:  15%|█▍        | 505/3388 [00:45<02:31, 19.08it/s]Loading weights:  15%|█▌        | 519/3388 [00:45<01:29, 32.13it/s]Loading weights:  15%|█▌        | 525/3388 [00:45<01:31, 31.45it/s]Loading weights:  16%|█▋        | 557/3388 [00:45<00:38, 74.28it/s]Loading weights:  17%|█▋        | 569/3388 [00:45<00:35, 78.75it/s]Loading weights:  17%|█▋        | 582/3388 [00:47<01:49, 25.74it/s]Loading weights:  19%|█▉        | 637/3388 [00:47<00:45, 60.20it/s]Loading weights:  19%|█▉        | 651/3388 [00:48<01:30, 30.22it/s]Loading weights:  21%|██        | 696/3388 [00:48<00:51, 51.89it/s]Loading weights:  21%|██▏       | 726/3388 [00:49<00:41, 64.14it/s]Loading weights:  22%|██▏       | 742/3388 [00:49<00:48, 54.33it/s]Loading weights:  22%|██▏       | 754/3388 [00:50<01:01, 42.65it/s]Loading weights:  23%|██▎       | 772/3388 [00:50<00:51, 50.35it/s]Loading weights:  23%|██▎       | 782/3388 [00:51<01:45, 24.63it/s]Loading weights:  24%|██▍       | 824/3388 [00:52<01:05, 38.87it/s]Loading weights:  25%|██▍       | 844/3388 [00:52<00:58, 43.61it/s]Loading weights:  25%|██▌       | 852/3388 [00:53<01:16, 33.24it/s]Loading weights:  26%|██▌       | 865/3388 [00:53<01:07, 37.48it/s]Loading weights:  27%|██▋       | 903/3388 [00:53<00:40, 60.95it/s]Loading weights:  27%|██▋       | 913/3388 [00:54<01:16, 32.26it/s]Loading weights:  28%|██▊       | 950/3388 [00:55<00:58, 41.96it/s]Loading weights:  29%|██▉       | 994/3388 [00:55<00:39, 60.50it/s]Loading weights:  30%|██▉       | 1003/3388 [00:55<00:46, 51.22it/s]Loading weights:  30%|██▉       | 1016/3388 [00:56<00:47, 49.81it/s]Loading weights:  30%|███       | 1023/3388 [00:56<00:53, 43.81it/s]Loading weights:  30%|███       | 1029/3388 [00:56<01:02, 37.51it/s]Loading weights:  31%|███       | 1034/3388 [00:57<01:13, 32.10it/s]Loading weights:  31%|███       | 1038/3388 [00:57<01:27, 26.88it/s]Loading weights:  31%|███       | 1050/3388 [00:57<01:05, 35.73it/s]Loading weights:  31%|███       | 1056/3388 [00:57<01:07, 34.33it/s]Loading weights:  32%|███▏      | 1080/3388 [00:57<00:42, 54.73it/s]Loading weights:  32%|███▏      | 1087/3388 [00:58<00:41, 55.74it/s]Loading weights:  32%|███▏      | 1094/3388 [00:59<01:42, 22.44it/s]Loading weights:  33%|███▎      | 1125/3388 [00:59<00:59, 38.28it/s]Loading weights:  34%|███▎      | 1141/3388 [01:00<01:05, 34.12it/s]Loading weights:  34%|███▍      | 1146/3388 [01:00<01:13, 30.44it/s]Loading weights:  35%|███▍      | 1182/3388 [01:00<00:38, 57.87it/s]Loading weights:  35%|███▌      | 1193/3388 [01:00<00:35, 61.06it/s]Loading weights:  36%|███▌      | 1205/3388 [01:01<00:41, 52.75it/s]Loading weights:  36%|███▌      | 1215/3388 [01:01<00:50, 43.35it/s]Loading weights:  36%|███▌      | 1227/3388 [01:01<00:43, 50.03it/s]Loading weights:  36%|███▋      | 1234/3388 [01:01<00:48, 44.54it/s]Loading weights:  37%|███▋      | 1257/3388 [01:01<00:33, 64.20it/s]Loading weights:  37%|███▋      | 1265/3388 [01:02<00:32, 65.12it/s]Loading weights:  38%|███▊      | 1273/3388 [01:02<00:46, 45.63it/s]Loading weights:  38%|███▊      | 1279/3388 [01:02<00:56, 37.41it/s]Loading weights:  38%|███▊      | 1284/3388 [01:03<01:08, 30.85it/s]Loading weights:  38%|███▊      | 1302/3388 [01:04<01:49, 18.97it/s]Loading weights:  40%|███▉      | 1347/3388 [01:04<00:52, 39.17it/s]Loading weights:  40%|████      | 1362/3388 [01:05<00:49, 41.24it/s]Loading weights:  40%|████      | 1370/3388 [01:05<00:54, 37.20it/s]Loading weights:  41%|████      | 1375/3388 [01:05<01:00, 33.26it/s]Loading weights:  41%|████      | 1379/3388 [01:06<02:10, 15.38it/s]Loading weights:  43%|████▎     | 1450/3388 [01:07<00:33, 57.43it/s]Loading weights:  43%|████▎     | 1471/3388 [01:07<00:28, 68.24it/s]Loading weights:  44%|████▍     | 1491/3388 [01:07<00:30, 62.31it/s]Loading weights:  44%|████▍     | 1507/3388 [01:08<00:47, 39.82it/s]Loading weights:  45%|████▌     | 1526/3388 [01:08<00:38, 47.87it/s]Loading weights:  45%|████▌     | 1537/3388 [01:08<00:38, 47.77it/s]Loading weights:  46%|████▌     | 1547/3388 [01:09<00:42, 43.09it/s]Loading weights:  46%|████▌     | 1555/3388 [01:09<00:48, 37.90it/s]Loading weights:  46%|████▌     | 1561/3388 [01:10<01:08, 26.58it/s]Loading weights:  47%|████▋     | 1578/3388 [01:10<00:50, 35.89it/s]Loading weights:  48%|████▊     | 1611/3388 [01:10<00:29, 60.81it/s]Loading weights:  48%|████▊     | 1620/3388 [01:10<00:28, 61.66it/s]Loading weights:  48%|████▊     | 1629/3388 [01:11<00:37, 46.92it/s]Loading weights:  48%|████▊     | 1636/3388 [01:11<00:44, 38.99it/s]Loading weights:  48%|████▊     | 1642/3388 [01:11<00:53, 32.75it/s]Loading weights:  49%|████▉     | 1657/3388 [01:11<00:39, 44.12it/s]Loading weights:  49%|████▉     | 1663/3388 [01:12<00:38, 45.27it/s]Loading weights:  49%|████▉     | 1669/3388 [01:12<00:52, 32.44it/s]Loading weights:  50%|████▉     | 1678/3388 [01:12<01:01, 27.78it/s]Loading weights:  50%|█████     | 1702/3388 [01:13<00:38, 43.31it/s]Loading weights:  50%|█████     | 1709/3388 [01:13<00:53, 31.38it/s]Loading weights:  51%|█████     | 1713/3388 [01:14<01:42, 16.39it/s]Loading weights:  52%|█████▏    | 1758/3388 [01:14<00:34, 46.80it/s]Loading weights:  53%|█████▎    | 1779/3388 [01:15<00:33, 47.35it/s]Loading weights:  53%|█████▎    | 1804/3388 [01:15<00:28, 56.04it/s]Loading weights:  54%|█████▎    | 1815/3388 [01:16<00:39, 39.92it/s]Loading weights:  54%|█████▍    | 1838/3388 [01:16<00:30, 50.10it/s]Loading weights:  55%|█████▍    | 1849/3388 [01:16<00:33, 46.09it/s]Loading weights:  55%|█████▍    | 1862/3388 [01:16<00:28, 53.33it/s]Loading weights:  55%|█████▌    | 1879/3388 [01:17<00:28, 53.71it/s]Loading weights:  56%|█████▌    | 1894/3388 [01:17<00:22, 65.33it/s]Loading weights:  56%|█████▌    | 1904/3388 [01:17<00:36, 40.77it/s]Loading weights:  56%|█████▋    | 1912/3388 [01:18<00:50, 29.32it/s]Loading weights:  57%|█████▋    | 1918/3388 [01:18<00:52, 28.18it/s]Loading weights:  57%|█████▋    | 1923/3388 [01:18<00:58, 24.87it/s]Loading weights:  57%|█████▋    | 1935/3388 [01:19<00:44, 32.84it/s]Loading weights:  57%|█████▋    | 1940/3388 [01:19<00:46, 31.10it/s]Loading weights:  58%|█████▊    | 1962/3388 [01:19<00:28, 49.26it/s]Loading weights:  58%|█████▊    | 1973/3388 [01:19<00:24, 57.14it/s]Loading weights:  58%|█████▊    | 1981/3388 [01:20<00:34, 41.23it/s]Loading weights:  59%|█████▊    | 1987/3388 [01:20<00:42, 33.17it/s]Loading weights:  59%|█████▉    | 1992/3388 [01:20<00:48, 28.74it/s]Loading weights:  59%|█████▉    | 2011/3388 [01:20<00:30, 44.69it/s]Loading weights:  60%|█████▉    | 2017/3388 [01:20<00:29, 46.27it/s]Loading weights:  60%|█████▉    | 2023/3388 [01:21<00:28, 47.89it/s]Loading weights:  60%|█████▉    | 2029/3388 [01:21<00:35, 38.39it/s]Loading weights:  60%|██████    | 2034/3388 [01:21<00:45, 29.59it/s]Loading weights:  60%|██████    | 2038/3388 [01:21<00:56, 24.09it/s]Loading weights:  61%|██████    | 2068/3388 [01:22<00:23, 57.31it/s]Loading weights:  61%|██████▏   | 2076/3388 [01:22<00:30, 42.58it/s]Loading weights:  61%|██████▏   | 2083/3388 [01:22<00:34, 37.45it/s]Loading weights:  62%|██████▏   | 2090/3388 [01:23<00:39, 33.01it/s]Loading weights:  62%|██████▏   | 2100/3388 [01:23<00:31, 40.53it/s]Loading weights:  62%|██████▏   | 2108/3388 [01:23<00:39, 32.27it/s]Loading weights:  63%|██████▎   | 2141/3388 [01:23<00:18, 67.24it/s]Loading weights:  63%|██████▎   | 2151/3388 [01:23<00:17, 69.94it/s]Loading weights:  64%|██████▍   | 2161/3388 [01:24<00:24, 49.28it/s]Loading weights:  64%|██████▍   | 2169/3388 [01:24<00:37, 32.21it/s]Loading weights:  65%|██████▍   | 2186/3388 [01:25<00:31, 38.23it/s]Loading weights:  65%|██████▍   | 2201/3388 [01:25<00:30, 38.40it/s]Loading weights:  65%|██████▌   | 2209/3388 [01:25<00:34, 34.57it/s]Loading weights:  65%|██████▌   | 2214/3388 [01:26<00:40, 28.69it/s]Loading weights:  66%|██████▋   | 2250/3388 [01:26<00:17, 65.08it/s]Loading weights:  67%|██████▋   | 2263/3388 [01:26<00:20, 54.47it/s]Loading weights:  67%|██████▋   | 2274/3388 [01:26<00:18, 59.68it/s]Loading weights:  68%|██████▊   | 2295/3388 [01:27<00:16, 65.09it/s]Loading weights:  68%|██████▊   | 2316/3388 [01:27<00:14, 74.52it/s]Loading weights:  69%|██████▊   | 2326/3388 [01:28<00:27, 38.05it/s]Loading weights:  69%|██████▉   | 2343/3388 [01:28<00:24, 42.07it/s]Loading weights:  69%|██████▉   | 2352/3388 [01:28<00:24, 41.97it/s]Loading weights:  70%|███████   | 2372/3388 [01:28<00:16, 60.08it/s]Loading weights:  70%|███████   | 2385/3388 [01:29<00:19, 50.85it/s]Loading weights:  71%|███████   | 2394/3388 [01:29<00:23, 42.70it/s]Loading weights:  71%|███████   | 2410/3388 [01:29<00:18, 53.04it/s]Loading weights:  71%|███████▏  | 2418/3388 [01:30<00:32, 29.50it/s]Loading weights:  72%|███████▏  | 2435/3388 [01:30<00:26, 35.98it/s]Loading weights:  72%|███████▏  | 2441/3388 [01:30<00:29, 31.72it/s]Loading weights:  72%|███████▏  | 2449/3388 [01:31<00:31, 30.02it/s]Loading weights:  72%|███████▏  | 2454/3388 [01:31<00:35, 26.19it/s]Loading weights:  73%|███████▎  | 2466/3388 [01:31<00:25, 36.08it/s]Loading weights:  73%|███████▎  | 2472/3388 [01:31<00:26, 34.33it/s]Loading weights:  74%|███████▍  | 2501/3388 [01:32<00:13, 65.07it/s]Loading weights:  74%|███████▍  | 2511/3388 [01:32<00:16, 53.14it/s]Loading weights:  74%|███████▍  | 2518/3388 [01:32<00:21, 40.87it/s]Loading weights:  75%|███████▍  | 2535/3388 [01:32<00:17, 47.47it/s]Loading weights:  75%|███████▌  | 2556/3388 [01:33<00:12, 68.74it/s]Loading weights:  76%|███████▌  | 2566/3388 [01:33<00:19, 41.95it/s]Loading weights:  76%|███████▋  | 2588/3388 [01:33<00:14, 56.07it/s]Loading weights:  77%|███████▋  | 2597/3388 [01:33<00:13, 59.41it/s]Loading weights:  77%|███████▋  | 2606/3388 [01:34<00:16, 46.30it/s]Loading weights:  77%|███████▋  | 2613/3388 [01:34<00:20, 38.40it/s]Loading weights:  77%|███████▋  | 2619/3388 [01:34<00:23, 32.75it/s]Loading weights:  77%|███████▋  | 2624/3388 [01:35<00:34, 22.16it/s]Loading weights:  78%|███████▊  | 2631/3388 [01:35<00:33, 22.57it/s]Loading weights:  78%|███████▊  | 2643/3388 [01:35<00:23, 31.87it/s]Loading weights:  78%|███████▊  | 2649/3388 [01:36<00:23, 31.59it/s]Loading weights:  79%|███████▉  | 2686/3388 [01:36<00:08, 78.93it/s]Loading weights:  80%|███████▉  | 2700/3388 [01:36<00:08, 81.38it/s]Loading weights:  80%|████████  | 2712/3388 [01:36<00:08, 76.45it/s]Loading weights:  80%|████████  | 2724/3388 [01:36<00:08, 82.02it/s]Loading weights:  81%|████████  | 2735/3388 [01:37<00:20, 32.14it/s]Loading weights:  82%|████████▏ | 2765/3388 [01:37<00:11, 52.53it/s]Loading weights:  82%|████████▏ | 2775/3388 [01:38<00:15, 40.04it/s]Loading weights:  82%|████████▏ | 2791/3388 [01:38<00:14, 41.06it/s]Loading weights:  83%|████████▎ | 2798/3388 [01:38<00:16, 36.66it/s]Loading weights:  83%|████████▎ | 2804/3388 [01:39<00:18, 32.24it/s]Loading weights:  83%|████████▎ | 2815/3388 [01:39<00:14, 40.88it/s]Loading weights:  83%|████████▎ | 2823/3388 [01:39<00:12, 46.20it/s]Loading weights:  84%|████████▍ | 2840/3388 [01:39<00:08, 66.48it/s]Loading weights:  85%|████████▌ | 2887/3388 [01:39<00:03, 142.27it/s]Loading weights:  86%|████████▌ | 2908/3388 [01:39<00:03, 141.62it/s]Loading weights:  88%|████████▊ | 2989/3388 [01:39<00:01, 276.30it/s]Loading weights:  90%|████████▉ | 3033/3388 [01:40<00:01, 284.36it/s]Loading weights:  91%|█████████▏| 3099/3388 [01:40<00:00, 364.71it/s]Loading weights:  93%|█████████▎| 3141/3388 [01:40<00:00, 374.43it/s]Loading weights:  94%|█████████▍| 3185/3388 [01:40<00:00, 383.93it/s]Loading weights:  96%|█████████▌| 3236/3388 [01:40<00:00, 405.95it/s]Loading weights:  97%|█████████▋| 3283/3388 [01:40<00:00, 374.29it/s]Loading weights:  99%|█████████▉| 3349/3388 [01:40<00:00, 442.60it/s]Loading weights: 100%|██████████| 3388/3388 [01:41<00:00, 33.54it/s] 
+[transformers] [1mQwen3_5ForConditionalGeneration LOAD REPORT[0m from: artifacts/socratic-nvfp4-quantized-final.broken-conv1d
+Key                                                                                    | Status     |                                                                                                              
+---------------------------------------------------------------------------------------+------------+--------------------------------------------------------------------------------------------------------------
+model.language_model.layers.{0...62}.linear_attn.conv1d.weight_quantizer._scale        | UNEXPECTED |                                                                                                              
+model.language_model.layers.{0...62}.linear_attn.conv1d.weight_quantizer._double_scale | UNEXPECTED |                                                                                                              
+model.visual.patch_embed.proj.weight_quantizer._double_scale                           | UNEXPECTED |                                                                                                              
+model.visual.patch_embed.proj.weight_quantizer._scale                                  | UNEXPECTED |                                                                                                              
+model.language_model.layers.{0...62}.linear_attn.conv1d.weight                         | MISMATCH   | Reinit due to size mismatch - ckpt: torch.Size([10240, 1, 8]) vs model:torch.Size([10240, 1, 4])             
+model.visual.patch_embed.proj.weight                                                   | MISMATCH   | Reinit due to size mismatch - ckpt: torch.Size([1152, 3, 2, 16, 8]) vs model:torch.Size([1152, 3, 2, 16, 16])
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISMATCH:	ckpt weights were loaded, but they did not match the original empty weight shapes.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+/usr/local/lib/python3.12/dist-packages/modelopt/torch/quantization/nn/modules/quant_linear.py:158: UserWarning: RealQuantLinear: No real-quant GEMM found: RealQuantQuantLinear(
+  in_features=5120, out_features=10240, bias=False
+  (input_quantizer): TensorQuantizer(disabled)
+  (output_quantizer): TensorQuantizer(disabled)
+  (weight_quantizer): TensorQuantizer(disabled)
+).
+  warnings.warn(f"RealQuantLinear: No real-quant GEMM found: {self}.")
+/usr/local/lib/python3.12/dist-packages/modelopt/torch/export/unified_export_hf.py:545: UserWarning: Cannot export model to the model_config. The modelopt-optimized model state_dict can be saved with torch.save for further inspection.
+  warnings.warn(
+Traceback (most recent call last):
+  File "/workspace/spartan-studybuddy/training/nvfp4/export_nvfp4.py", line 84, in <module>
+    main()
+  File "/workspace/spartan-studybuddy/training/nvfp4/export_nvfp4.py", line 78, in main
+    export_hf_checkpoint(model, dtype=torch.bfloat16, export_dir=export_dir, save_modelopt_state=False)
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/export/unified_export_hf.py", line 549, in export_hf_checkpoint
+    raise e
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/export/unified_export_hf.py", line 515, in export_hf_checkpoint
+    post_state_dict, hf_quant_config = _export_hf_checkpoint(model, dtype)
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/export/unified_export_hf.py", line 433, in _export_hf_checkpoint
+    requantize_resmooth_fused_llm_layers(model)
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/export/unified_export_hf.py", line 150, in requantize_resmooth_fused_llm_layers
+    model(fake_input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1777, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1788, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/utils/generic.py", line 911, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1804, in forward
+    outputs = self.model(
+              ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1777, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1788, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/utils/generic.py", line 911, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1586, in forward
+    outputs = self.language_model(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1777, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1788, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/utils/generic.py", line 1040, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/utils/output_capturing.py", line 262, in wrapper
+    outputs = func(self, *args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1212, in forward
+    hidden_states = decoder_layer(
+                    ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/modeling_layers.py", line 110, in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1777, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1788, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 788, in forward
+    hidden_states = self.linear_attn(
+                    ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1777, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1788, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/integrations/accelerate.py", line 941, in wrapped
+    output = forward_func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 464, in forward
+    mixed_qkv = self.in_proj_qkv(hidden_states)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1777, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1883, in _call_impl
+    return inner()
+           ^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1831, in inner
+    result = forward_call(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/quantization/nn/modules/quant_linear.py", line 184, in forward
+    return super().forward(input, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/quantization/nn/modules/quant_module.py", line 161, in forward
+    return super().forward(input, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/modelopt/torch/quantization/nn/modules/quant_module.py", line 113, in forward
+    output = super().forward(input, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (2x5120 and 2560x10240)

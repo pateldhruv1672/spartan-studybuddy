@@ -15,7 +15,7 @@ def get_job(jid:str)->dict:
 
 def claim_jobs(limit:int=5)->list[dict]:
     with db() as conn:
-        ids=[r[0] for r in conn.execute("SELECT id FROM agent_jobs WHERE status='queued' ORDER BY created_at LIMIT ?",(limit,)).fetchall()]
+        ids=[r[0] for r in conn.execute("SELECT id FROM agent_jobs WHERE status='queued' ORDER BY created_at LIMIT ? FOR UPDATE SKIP LOCKED",(limit,)).fetchall()]
         for jid in ids:conn.execute("UPDATE agent_jobs SET status='running',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='queued'",(jid,))
     return [get_job(x) for x in ids]
 

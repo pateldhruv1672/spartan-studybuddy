@@ -77,10 +77,11 @@ start_vllm_docker() {
 
   mkdir -p "$HF_CACHE"
   local docker_model="$model"
+  local model_norm="${model#./}"
   if [[ "$model" == "$ROOT"/* ]]; then
     docker_model="/workspace/spartan-studybuddy/${model#"$ROOT"/}"
-  elif [[ "$model" == artifacts/* || "$model" == training/* ]]; then
-    docker_model="/workspace/spartan-studybuddy/$model"
+  elif [[ "$model_norm" == artifacts/* || "$model_norm" == training/* ]]; then
+    docker_model="/workspace/spartan-studybuddy/$model_norm"
   fi
   echo "Starting $cname: $model -> 127.0.0.1:$port"
   docker run -d \

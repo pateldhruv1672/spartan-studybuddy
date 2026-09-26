@@ -50,6 +50,11 @@
         },
         "spartan.userId": {
           "type": "string",
+        "spartan.authToken": {
+          "type": "string",
+          "default": "",
+          "description": "Login token copied from the StudyBuddy web app"
+        },
           "default": "demo-spartan",
           "description": "StudyBuddy user ID"
         },

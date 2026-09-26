@@ -20,6 +20,10 @@ EXTRA=(
   --max-num-batched-tokens "${GENERAL_MAX_BATCHED_TOKENS:-8192}"
   --served-model-name "${GENERAL_SERVED_MODEL_NAME:-spartan-teacher}"
 )
+# Fixed KV budget skips vLLM's free-memory profiling assertion on DGX Spark
+# unified memory; set GENERAL_KV_CACHE_BYTES= (empty) to use GENERAL_GPU_UTIL sizing.
+GENERAL_KV_CACHE_BYTES="${GENERAL_KV_CACHE_BYTES-16G}"
+if [[ -n "$GENERAL_KV_CACHE_BYTES" ]]; then EXTRA+=(--kv-cache-memory-bytes "$GENERAL_KV_CACHE_BYTES"); fi
 if [[ "$PROFILE" == "tuned" ]]; then
   case "$SPECULATION_METHOD" in
     ngram)

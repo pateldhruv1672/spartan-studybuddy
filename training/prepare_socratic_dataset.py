@@ -114,8 +114,13 @@ def write_jsonl(path:Path,rows:Iterable[dict[str,Any]]):
     with path.open('w',encoding='utf-8') as f:
         for r in rows:f.write(json.dumps(r,ensure_ascii=False)+'\n')
 
+def row_fingerprint(row:dict[str,Any])->str:
+    import hashlib
+    payload=json.dumps(row.get('messages',[]),sort_keys=True,ensure_ascii=False)
+    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--output-dir',default='training/data'); p.add_argument('--include-hf',action='store_true'); p.add_argument('--socrateach-samples',type=int,default=8000); p.add_argument('--pact-samples',type=int,default=2000); p.add_argument('--local-multiplier',type=int,default=18); p.add_argument('--validation-fraction',type=float,default=.06); p.add_argument('--seed',type=int,default=42); a=p.parse_args()
+    p=argparse.ArgumentParser(); p.add_argument('--output-dir',default='training/data'); p.add_argument('--include-hf',action='store_true'); p.add_argument('--socrateach-samples',type=int,default=8000); p.add_argument('--pact-samples',type=int,default=2000); p.add_argument('--local-multiplier',type=int,default=18); p.add_argument('--validation-fraction',type=float,default=.06); p.add_argument('--test-fraction',type=float,default=.06); p.add_argument('--seed',type=int,default=42); a=p.parse_args()
     rng=random.Random(a.seed); rows=local_examples(a.local_multiplier); sources={'studybuddy-enterprise':len(rows)}
     if a.include_hf:
         try:
@@ -124,8 +129,41 @@ def main():
         try:
             x=sample_hf('AndreiSobo/PACT-Socratic-Coding-Tutor','train',a.pact_samples); rows.extend(x); sources['AndreiSobo/PACT-Socratic-Coding-Tutor']=len(x)
         except Exception as e: print(f'WARNING: PACT unavailable: {e}')
-    rng.shuffle(rows); vn=max(1,int(len(rows)*a.validation_fraction)); val,train=rows[:vn],rows[vn:]
-    out=Path(a.output_dir); write_jsonl(out/'train.jsonl',train); write_jsonl(out/'validation.jsonl',val); write_jsonl(out/'behavior_eval.jsonl',EVAL_CASES)
-    manifest={'seed':a.seed,'train_records':len(train),'validation_records':len(val),'behavior_eval_records':len(EVAL_CASES),'sources':sources,'modes':{'socratic':'majority','direct':'minority','explain':'minority'},'note':'Private customer repositories are never training data. behavior_eval.jsonl is held out.'}
+    rng.shuffle(rows)
+    n=len(rows)
+    vn=max(1,int(n*a.validation_fraction))
+    tn=max(1,int(n*a.test_fraction))
+    test,val,train=rows[:tn],rows[tn:tn+vn],rows[tn+vn:]
+
+    # Prove the three splits are disjoint: fingerprint every row's message content and
+    # fail loud rather than silently ship a leaked test set.
+    fp_train={row_fingerprint(r) for r in train}
+    fp_val={row_fingerprint(r) for r in val}
+    fp_test={row_fingerprint(r) for r in test}
+    overlap_train_val=fp_train & fp_val
+    overlap_train_test=fp_train & fp_test
+    overlap_val_test=fp_val & fp_test
+    if overlap_train_val or overlap_train_test or overlap_val_test:
+        raise SystemExit(
+            f"Split leakage detected: train/val={len(overlap_train_val)} "
+            f"train/test={len(overlap_train_test)} val/test={len(overlap_val_test)} overlapping rows"
+        )
+
+    out=Path(a.output_dir)
+    write_jsonl(out/'train.jsonl',train)
+    write_jsonl(out/'validation.jsonl',val)
+    write_jsonl(out/'test.jsonl',test)
+    write_jsonl(out/'behavior_eval.jsonl',EVAL_CASES)
+    manifest={
+        'seed':a.seed,
+        'train_records':len(train),
+        'validation_records':len(val),
+        'test_records':len(test),
+        'behavior_eval_records':len(EVAL_CASES),
+        'sources':sources,
+        'modes':{'socratic':'majority','direct':'minority','explain':'minority'},
+        'split_leakage_check':'passed: zero overlapping rows across train/validation/test (sha256 of message content)',
+        'note':'Private customer repositories are never training data. test.jsonl and behavior_eval.jsonl are both held out from train/validation; test.jsonl is a random held-out slice of the same pool, behavior_eval.jsonl is a separately hand-authored rubric set.',
+    }
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8'); print(json.dumps(manifest,indent=2))
 if __name__=='__main__': main()

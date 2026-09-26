@@ -1,0 +1,47 @@
+{
+  "profile": "base",
+  "endpoint": "http://127.0.0.1:8200/v1",
+  "model": "studybuddy-base",
+  "requests": 16,
+  "concurrency": 1,
+  "max_tokens": 180,
+  "wall_time_s": 496.2554,
+  "total_output_tokens": 1783,
+  "aggregate_output_tok_s": 3.593,
+  "ttft_p50_s": 0.5647,
+  "ttft_p95_s": 0.5939,
+  "e2e_p50_s": 36.8498,
+  "e2e_p95_s": 50.1203,
+  "decode_tok_s_p50": 3.647,
+  "decode_tok_s_p95": 3.805,
+  "spec_metrics_samples": [],
+  "samples": [
+    {
+      "ttft_s": 0.39519968700187746,
+      "e2e_s": 7.044300755005679,
+      "output_tokens": 25,
+      "decode_tok_s": 3.7599067519521885,
+      "request_tok_s": 3.548968289327369,
+      "speculative_decoding": null,
+      "text": "What data structure are you using to manage the frontier, and in what order are you adding and removing nodes from it?"
+    },
+    {
+      "ttft_s": 0.592253166003502,
+      "e2e_s": 46.62138178900932,
+      "output_tokens": 167,
+      "decode_tok_s": 3.628137333812827,
+      "request_tok_s": 3.582047412403575,
+      "speculative_decoding": null,
+      "text": "Sure! Let's go step by step to analyze the recurrence relation:\n\n**T(n) = 4T(n/2) + n**\n\n---\n\n### Step 1: Identify the parameters of the recurrence\n\nThe Master Theorem applies to recurrences of the form:\n\n**T(n) = aT(n/b) + f(n)**\n\nWhere:\n- **a \u2265 1** is the number of subproblems.\n- **b > 1** is the factor by which the problem size is reduced in each subproblem.\n- **f(n)** is the cost of dividing the problem and combining the solutions.\n\n**Question 1:**  \nWhat are the values of **a**, **b**, and **f(n)** in the given recurrence **T(n) = 4T(n/2) + n**?"
+    },
+    {
+      "ttft_s": 0.5931456590042217,
+      "e2e_s": 26.885882083006436,
+      "output_tokens": 96,
+      "decode_tok_s": 3.6511985079028575,
+      "request_tok_s": 3.570647215650701,
+      "speculative_decoding": null,
+      "text": "Great observation! Let's think through this carefully.\n\n**Diagnostic question:**  \nAre you using the same data for training and validation, or are they distinct datasets?\n\n**Minimal hint:**  \nThe fact that your training loss is decreasing while your validation loss is increasing suggests that your model may be *overfitting* to the training data. This often happens when the model learns patterns specific to the training set that do not generalize to new, unseen data (like your validation set)."
+    }
+  ]
+}
